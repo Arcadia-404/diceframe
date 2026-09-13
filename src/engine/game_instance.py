@@ -109,7 +109,7 @@ class GameInstance:
     """
 
     game_key: tuple[str, str, str]      # (platform, target_id, account_id)
-    instance_schema_version: int = 9
+    instance_schema_version: int = 11
     run_id: str = field(default_factory=lambda: f"run_{uuid4().hex}")
     memory_namespace: str = ""
     economy: dict[str, Any] = field(default_factory=dict)

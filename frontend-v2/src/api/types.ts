@@ -299,6 +299,9 @@ export interface ManualRollTimelineEntry {
   round_number: number
   label?: string
   formula: string
+  purpose?: 'free' | 'check' | 'contest' | string
+  target?: number | null
+  comparison?: 'at_least' | 'at_most' | string
   status?: 'pending' | 'resolved' | 'cancelled' | string
   target_names: Record<string, string>
   results: Record<string, {
@@ -306,6 +309,9 @@ export interface ManualRollTimelineEntry {
     rolls?: number[]
     modifier?: number
     natural?: number | null
+    target?: number
+    comparison?: 'at_least' | 'at_most' | string
+    verdict?: string
   }>
   created_at?: string
 }

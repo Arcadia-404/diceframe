@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import { cancelManualRollRequest, createManualRollRequest, fetchManualRollRequests, resolveManualRollRequest } from './api'
-import type { ManualRollRequest, ManualRollVisibility } from './types'
+import type { ManualRollComparison, ManualRollPurpose, ManualRollRequest, ManualRollVisibility } from './types'
 
 export function createOperationId(): string {
   return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -45,7 +45,7 @@ export function useManualRolls(gameKey: Ref<string>, runId: Ref<string>, actorId
   }
   function dismiss(id: string) { dismissed.value = new Set([...dismissed.value, id]); if (activeRequestId.value === id) activeRequestId.value = '' }
   function reopen(id: string) { activeRequestId.value = id; dismissed.value.delete(id); dismissed.value = new Set(dismissed.value) }
-  async function create(input: { formula: string; label: string; target_uids: string[]; visibility: ManualRollVisibility; operation_id?: string }) {
+  async function create(input: { formula: string; label: string; purpose: ManualRollPurpose; target?: number | null; comparison?: ManualRollComparison; target_uids: string[]; visibility: ManualRollVisibility; operation_id?: string }) {
     const operation_id = input.operation_id || createOperationId()
     await createManualRollRequest(gameKey.value, { ...input, operation_id, run_id: runId.value })
     await refresh(); return operation_id

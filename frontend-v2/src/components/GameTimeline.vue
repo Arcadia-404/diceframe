@@ -85,6 +85,15 @@ const hiddenRoundCount = computed(() => Math.max(0, props.log.length - visibleLo
 function manualRollsForRound(round: number): ManualRollTimelineEntry[] {
   return (props.manualRolls || []).filter(item => Number(item.round_number || 0) === round)
 }
+function manualRollResultText(result: ManualRollTimelineEntry['results'][string]): string {
+  const total = String(result.total ?? '')
+  const target = result.target == null ? '' : ` / ${result.target}`
+  const verdict = result.verdict === 'success' ? (isEnglish.value ? 'success' : '成功')
+    : result.verdict === 'failure' ? (isEnglish.value ? 'failure' : '失败')
+      : result.verdict === 'winner' ? (isEnglish.value ? 'winner' : '胜者')
+        : result.verdict === 'loss' ? (isEnglish.value ? 'loss' : '落败') : ''
+  return `${total}${target}${verdict ? ` · ${verdict}` : ''}`
+}
 const rounds = computed(() => visibleLog.value.map((entry, index) => {
   const sw = entry.swipes || []
   const cur = Number(entry.current_swipe) || 0
@@ -270,7 +279,7 @@ watch(() => rounds.value, async (latest) => {
           <div class="state-card good manual-roll-timeline-card">
             <span class="state-card-title"><NIcon :component="CheckmarkCircleOutline" size="14" />{{ t('manualRollTimeline') }} · {{ roll.label || roll.formula }}</span>
             <div class="state-card-body manual-roll-totals">
-              <span v-for="(result, uid) in roll.results" :key="uid" class="manual-roll-result">{{ roll.target_names[uid] || uid }}：{{ result.total }}</span>
+              <span v-for="(result, uid) in roll.results" :key="uid" class="manual-roll-result">{{ roll.target_names[uid] || uid }}：{{ manualRollResultText(result) }}</span>
             </div>
           </div>
         </div>
@@ -286,7 +295,7 @@ watch(() => rounds.value, async (latest) => {
         <div class="state-card good manual-roll-timeline-card">
           <span class="state-card-title"><NIcon :component="CheckmarkCircleOutline" size="14" />{{ t('manualRollTimeline') }} · {{ roll.label || roll.formula }}</span>
           <div class="state-card-body manual-roll-totals">
-            <span v-for="(result, uid) in roll.results" :key="uid" class="manual-roll-result">{{ roll.target_names[uid] || uid }}：{{ result.total }}</span>
+            <span v-for="(result, uid) in roll.results" :key="uid" class="manual-roll-result">{{ roll.target_names[uid] || uid }}：{{ manualRollResultText(result) }}</span>
           </div>
         </div>
       </div>

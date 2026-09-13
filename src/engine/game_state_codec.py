@@ -127,7 +127,7 @@ class GameStateCodec:
         )
         instance = instance_type(
             game_key=tuple(data["game_key"]),
-            instance_schema_version=int(data.get("instance_schema_version", 6) or 6),
+            instance_schema_version=int(data.get("instance_schema_version", 11) or 11),
             run_id=str(data.get("run_id") or ""),
             memory_namespace=str(data.get("memory_namespace") or ""),
             economy=data.get("economy") or {},

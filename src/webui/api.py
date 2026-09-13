@@ -346,7 +346,7 @@ class WebAPI:
                 load_rule=self._load_rule_for_game,
             )
         )
-        self._manual_rolls = manual_rolls.ManualRollService(manual_rolls.ManualRollDependencies(_parse_game_key, self._reg.get, self._reg.save))
+        self._manual_rolls = manual_rolls.ManualRollService(manual_rolls.ManualRollDependencies(_parse_game_key, self._reg.get, self._reg.save, self._load_rule_for_game))
         self._game_master = game_master.GameMasterService(
             game_master.GameMasterDependencies(
                 parse_game_key=_parse_game_key,

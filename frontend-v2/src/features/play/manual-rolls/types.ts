@@ -1,5 +1,7 @@
 export type ManualRollVisibility = 'party' | 'private'
 export type ManualRollStatus = 'pending' | 'resolved' | 'cancelled'
+export type ManualRollPurpose = 'free' | 'check' | 'contest'
+export type ManualRollComparison = 'auto' | 'at_least' | 'at_most'
 
 export interface ManualRollResult {
   formula: string
@@ -7,6 +9,9 @@ export interface ManualRollResult {
   modifier: number
   total: number
   natural: number | null
+  target?: number
+  comparison?: ManualRollComparison
+  verdict?: 'success' | 'failure' | 'winner' | 'loss' | string
   rolled_by: string
   rolled_at: string
 }
@@ -20,6 +25,9 @@ export interface ManualRollRequest {
   created_at: string
   label: string
   formula: string
+  purpose?: ManualRollPurpose
+  target?: number | null
+  comparison?: ManualRollComparison
   visibility: ManualRollVisibility
   target_uids: string[]
   target_names: Record<string, string>

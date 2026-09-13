@@ -1,5 +1,5 @@
 import { api } from '@/api/client'
-import type { ManualRollRequest, ManualRollRequestsResponse, ManualRollVisibility } from './types'
+import type { ManualRollComparison, ManualRollPurpose, ManualRollRequest, ManualRollRequestsResponse, ManualRollVisibility } from './types'
 
 const path = (gameKey: string) => `/games/${encodeURIComponent(gameKey)}/roll-requests`
 
@@ -8,7 +8,7 @@ export function fetchManualRollRequests(gameKey: string) {
 }
 
 export function createManualRollRequest(gameKey: string, body: {
-  operation_id: string; run_id: string; formula: string; label: string; target_uids: string[]; visibility: ManualRollVisibility
+  operation_id: string; run_id: string; formula: string; label: string; purpose: ManualRollPurpose; target?: number | null; comparison?: ManualRollComparison; target_uids: string[]; visibility: ManualRollVisibility
 }) {
   return api<{ ok: true; request: ManualRollRequest }>(path(gameKey), { method: 'POST', body: JSON.stringify(body) })
 }

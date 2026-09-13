@@ -253,6 +253,9 @@ def _public_manual_rolls(instance: Any, viewer_uid: str) -> list[dict[str, Any]]
                 "rolls": list(result.get("rolls") or []),
                 "modifier": result.get("modifier", 0),
                 "natural": result.get("natural"),
+                "target": result.get("target"),
+                "comparison": result.get("comparison"),
+                "verdict": result.get("verdict"),
             }
             for uid, result in request["results"].items()
             if str(uid) in target_uids and isinstance(result, dict)
@@ -264,6 +267,9 @@ def _public_manual_rolls(instance: Any, viewer_uid: str) -> list[dict[str, Any]]
             "round_number": int(request.get("round_number", 0) or 0),
             "label": str(request.get("label") or ""),
             "formula": str(request.get("formula") or ""),
+            "purpose": str(request.get("purpose") or "free"),
+            "target": request.get("target"),
+            "comparison": str(request.get("comparison") or "at_least"),
             "status": str(request.get("status") or "pending"),
             "target_names": {
                 uid: str((request.get("target_names") or {}).get(uid) or uid)

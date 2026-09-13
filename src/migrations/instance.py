@@ -17,7 +17,7 @@ from src.compat.dnd2024_adventure_bindings import apply_unreleased_adventure_bin
 
 logger = logging.getLogger("trpg")
 
-CURRENT_INSTANCE_SCHEMA_VERSION = 10
+CURRENT_INSTANCE_SCHEMA_VERSION = 11
 
 
 def _legacy_run_id(payload: Mapping[str, Any]) -> str:
@@ -109,6 +109,24 @@ def _migrate_v9_to_v10(payload: dict[str, Any]) -> dict[str, Any]:
     binding = payload.get("adventure_binding")
     payload["play_mode"] = "adventure" if isinstance(binding, dict) and binding.get("adventure_id") else "free"
     payload["instance_schema_version"] = 10
+    return payload
+
+
+def _migrate_v10_to_v11(payload: dict[str, Any]) -> dict[str, Any]:
+    """Add explicit purpose metadata to manual roll requests.
+
+    Existing requests were record-only rolls, so ``free`` is the only safe
+    default. No old result is reinterpreted as a check.
+    """
+    requests = payload.get("manual_roll_requests")
+    if isinstance(requests, list):
+        for request in requests:
+            if not isinstance(request, dict):
+                continue
+            request.setdefault("purpose", "free")
+            request.setdefault("target", None)
+            request.setdefault("comparison", "at_least")
+    payload["instance_schema_version"] = 11
     return payload
 
 
@@ -230,6 +248,9 @@ def migrate_game_state_payload(data: Mapping[str, Any]) -> dict[str, Any]:
     if version == 9:
         payload = _migrate_v9_to_v10(payload)
         version = 10
+    if version == 10:
+        payload = _migrate_v10_to_v11(payload)
+        version = 11
     payload["instance_schema_version"] = version
     return payload
 
