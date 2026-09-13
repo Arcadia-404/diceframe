@@ -227,9 +227,10 @@ async def plan_temporary_encounter(
         if binding_error:
             return binding_error
         view = runtime.gameplay_view(instance, effective_requester, True)
-        access = view.get("encounter_access") if isinstance(view, dict) else None
-        combat = view.get("combat") if isinstance(view, dict) else None
-        request = view.get("encounter_request") if isinstance(view, dict) else None
+        view_data = view if isinstance(view, dict) else {}
+        access = view_data.get("encounter_access")
+        combat = view_data.get("combat")
+        request = view_data.get("encounter_request")
         if isinstance(combat, dict) and combat.get("status") == "active":
             return _error("COMBAT_ACTIVE", "战斗进行中，无法生成临时遭遇")
         request_pending = (
@@ -239,7 +240,8 @@ async def plan_temporary_encounter(
         # 标准自由对局没有叙事层 encounter_request；GM 从战斗工具
         # 明确点击 AI 生成时，sandbox capability 本身就是授权条件。
         # 活动冒险的未准备状态仍必须有待处理敌情，不能静默绕过剧情门槛。
-        if not request_pending and str((access or {}).get("mode") or "") != "sandbox":
+        access_mode = str(access.get("mode") or "") if isinstance(access, dict) else ""
+        if not request_pending and access_mode != "sandbox":
             return _error(
                 "NO_PENDING_ENCOUNTER",
                 "当前没有可生成临时遭遇的敌情",
@@ -250,10 +252,13 @@ async def plan_temporary_encounter(
                 "STORY_ENCOUNTER_BOUND",
                 "当前剧情已绑定正式遭遇，不能覆盖为临时遭遇",
             )
-        requested_preset_id = str(request.get("encounter_preset_id") or "") if request_pending else ""
+        requested_preset_id = (
+            str(request.get("encounter_preset_id") or "")
+            if isinstance(request, dict) and request_pending else ""
+        )
         available_preset_ids = {
             str(item.get("id") or "")
-            for item in (view.get("encounter_presets") or [])
+            for item in (view_data.get("encounter_presets") or [])
             if isinstance(item, dict)
         }
         if requested_preset_id and requested_preset_id in available_preset_ids:
