@@ -908,55 +908,6 @@ onBeforeUnmount(() => { if (pollTimer) window.clearInterval(pollTimer) })
         </div>
 
         <p v-if="aiError && !aiProposal" class="combat-error" role="alert">{{ aiError }}</p>
-          <div v-if="isGm && aiProposal" class="guided-preset ai-encounter-preview">
-          <span>{{ copy.aiPreviewTag }}</span>
-            <strong>{{ aiProposal.title }}</strong>
-            <p>{{ aiProposal.description }}</p>
-            <small class="encounter-source">{{ copy.aiDifficulty }}</small>
-          <p class="combat-state">{{ copy.aiDraftHint }}</p>
-          <ul class="ai-encounter-enemies">
-            <li v-for="enemy in aiDraft" :key="enemy.id">
-              <header class="ai-draft-head">
-                <input v-model="enemy.selected" type="checkbox" :aria-label="enemy.name || copy.aiName" />
-                <input v-model="enemy.name" type="text" maxlength="60" :aria-label="copy.aiName" />
-                <label class="ai-draft-quantity">
-                  <span>{{ copy.aiQuantity }}</span>
-                  <input v-model.number="enemy.quantity" type="number" min="1" max="12" :aria-label="copy.aiQuantity" />
-                </label>
-              </header>
-              <div class="ai-draft-fields">
-                <label><span>{{ copy.hp }}</span><input v-model.number="enemy.hp" type="number" min="1" max="500" :aria-label="copy.hp" /></label>
-                <label><span>{{ copy.ac }}</span><input v-model.number="enemy.armor_class" type="number" min="8" max="25" :aria-label="copy.ac" /></label>
-                <label><span>{{ copy.tempSpeed }}</span><input v-model.number="enemy.speed" type="number" min="0" max="80" :aria-label="copy.tempSpeed" /></label>
-                <label><span>{{ copy.aiInitiative }}</span><input v-model.number="enemy.initiative_modifier" type="number" min="-5" max="10" :aria-label="copy.aiInitiative" /></label>
-              </div>
-              <div v-for="attack in enemy.attacks || []" :key="attack.id" class="ai-draft-attack">
-                <label><span>{{ copy.attack }}</span><input v-model="attack.name" type="text" maxlength="60" :aria-label="copy.attack" /></label>
-                <label><span>{{ copy.aiAttackBonus }}</span><input v-model.number="attack.attack_bonus" type="number" min="-2" max="15" :aria-label="copy.aiAttackBonus" /></label>
-                <label><span>{{ copy.aiDamage }}</span><input v-model="attack.damage" type="text" maxlength="40" :aria-label="copy.aiDamage" /></label>
-                <label><span>{{ copy.aiNormalRange }}</span><input v-model.number="attack.range" type="number" min="5" max="600" :aria-label="copy.aiNormalRange" /></label>
-                <label><span>{{ copy.aiLongRange }}</span><input v-model.number="attack.long_range" type="number" min="5" max="600" :aria-label="copy.aiLongRange" /></label>
-                <button type="button" :disabled="(enemy.attacks?.length || 0) <= 1" @click="removeDraftAttack(enemy, attack.id || '')">
-                  {{ copy.aiRemoveAttack }}
-                </button>
-              </div>
-              <button type="button" class="ai-draft-add-attack" :disabled="(enemy.attacks?.length || 0) >= 3" @click="addDraftAttack(enemy)">
-                <NIcon :component="SparklesOutline" />{{ copy.aiAddAttack }}
-              </button>
-            </li>
-          </ul>
-          <p class="combat-state">{{ copy.aiEncounterNote }}</p>
-          <div class="unprepared-actions">
-            <button type="button" @click="restoreAiDraft">{{ copy.aiRestore }}</button>
-            <button type="button" :disabled="aiBusy" @click="planTemporaryEncounter">
-              <NIcon :component="SparklesOutline" />{{ copy.aiRegenerate }}
-            </button>
-            <button type="button" class="combat-primary" :disabled="busy || !selectedDraftCount" @click="confirmAiEncounter">
-              <NIcon :component="PlayForwardOutline" />{{ copy.aiConfirmStart }}
-            </button>
-            <button type="button" @click="cancelAiProposal">{{ copy.cancel }}</button>
-          </div>
-        </div>
 
         <section v-if="encounterReadiness?.required_count" class="party-readiness" aria-live="polite">
           <header>
@@ -1021,6 +972,9 @@ onBeforeUnmount(() => { if (pollTimer) window.clearInterval(pollTimer) })
             <button v-if="isGm && action('combat.start')" type="button" class="combat-primary" @click="toggleNextEncounter">
               <NIcon :component="PlayForwardOutline" />{{ nextEncounterOpen ? copy.cancelNextEncounter : copy.nextEncounter }}
             </button>
+            <button v-if="canPlanTemporaryEncounter" type="button" class="ai-encounter-toggle" :disabled="aiBusy" @click="planTemporaryEncounter">
+              <NIcon :component="SparklesOutline" />{{ aiBusy ? copy.aiPreparing : copy.aiPrepare }}
+            </button>
           </div>
           <div v-if="nextEncounterOpen" class="next-encounter-picker">
             <label>
@@ -1037,6 +991,59 @@ onBeforeUnmount(() => { if (pollTimer) window.clearInterval(pollTimer) })
             </button>
           </div>
         </section>
+
+        <!-- AI 临时遭遇草稿：战斗未开始与已结算两种状态都要可见（结算态可
+             直接由 GM 发起下一场 AI 临时遭遇），因此挂在 encounter-start
+             分支之外、不受 combat.status!=='ended' 的 v-if/v-else 链约束。 -->
+        <div v-if="isGm && aiProposal" class="guided-preset ai-encounter-preview">
+          <span>{{ copy.aiPreviewTag }}</span>
+          <strong>{{ aiProposal.title }}</strong>
+          <p>{{ aiProposal.description }}</p>
+          <small class="encounter-source">{{ copy.aiDifficulty }}</small>
+          <p class="combat-state">{{ copy.aiDraftHint }}</p>
+          <ul class="ai-encounter-enemies">
+            <li v-for="enemy in aiDraft" :key="enemy.id">
+              <header class="ai-draft-head">
+                <input v-model="enemy.selected" type="checkbox" :aria-label="enemy.name || copy.aiName" />
+                <input v-model="enemy.name" type="text" maxlength="60" :aria-label="copy.aiName" />
+                <label class="ai-draft-quantity">
+                  <span>{{ copy.aiQuantity }}</span>
+                  <input v-model.number="enemy.quantity" type="number" min="1" max="12" :aria-label="copy.aiQuantity" />
+                </label>
+              </header>
+              <div class="ai-draft-fields">
+                <label><span>{{ copy.hp }}</span><input v-model.number="enemy.hp" type="number" min="1" max="500" :aria-label="copy.hp" /></label>
+                <label><span>{{ copy.ac }}</span><input v-model.number="enemy.armor_class" type="number" min="8" max="25" :aria-label="copy.ac" /></label>
+                <label><span>{{ copy.tempSpeed }}</span><input v-model.number="enemy.speed" type="number" min="0" max="80" :aria-label="copy.tempSpeed" /></label>
+                <label><span>{{ copy.aiInitiative }}</span><input v-model.number="enemy.initiative_modifier" type="number" min="-5" max="10" :aria-label="copy.aiInitiative" /></label>
+              </div>
+              <div v-for="attack in enemy.attacks || []" :key="attack.id" class="ai-draft-attack">
+                <label><span>{{ copy.attack }}</span><input v-model="attack.name" type="text" maxlength="60" :aria-label="copy.attack" /></label>
+                <label><span>{{ copy.aiAttackBonus }}</span><input v-model.number="attack.attack_bonus" type="number" min="-2" max="15" :aria-label="copy.aiAttackBonus" /></label>
+                <label><span>{{ copy.aiDamage }}</span><input v-model="attack.damage" type="text" maxlength="40" :aria-label="copy.aiDamage" /></label>
+                <label><span>{{ copy.aiNormalRange }}</span><input v-model.number="attack.range" type="number" min="5" max="600" :aria-label="copy.aiNormalRange" /></label>
+                <label><span>{{ copy.aiLongRange }}</span><input v-model.number="attack.long_range" type="number" min="5" max="600" :aria-label="copy.aiLongRange" /></label>
+                <button type="button" :disabled="(enemy.attacks?.length || 0) <= 1" @click="removeDraftAttack(enemy, attack.id || '')">
+                  {{ copy.aiRemoveAttack }}
+                </button>
+              </div>
+              <button type="button" class="ai-draft-add-attack" :disabled="(enemy.attacks?.length || 0) >= 3" @click="addDraftAttack(enemy)">
+                <NIcon :component="SparklesOutline" />{{ copy.aiAddAttack }}
+              </button>
+            </li>
+          </ul>
+          <p class="combat-state">{{ copy.aiEncounterNote }}</p>
+          <div class="unprepared-actions">
+            <button type="button" @click="restoreAiDraft">{{ copy.aiRestore }}</button>
+            <button type="button" :disabled="aiBusy" @click="planTemporaryEncounter">
+              <NIcon :component="SparklesOutline" />{{ copy.aiRegenerate }}
+            </button>
+            <button type="button" class="combat-primary" :disabled="busy || !selectedDraftCount" @click="confirmAiEncounter">
+              <NIcon :component="PlayForwardOutline" />{{ copy.aiConfirmStart }}
+            </button>
+            <button type="button" @click="cancelAiProposal">{{ copy.cancel }}</button>
+          </div>
+        </div>
       </section>
 
       <template v-else>
