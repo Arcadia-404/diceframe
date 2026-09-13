@@ -37,13 +37,13 @@ describe('GmToolbar GM narration style', () => {
 
   it('follows world (checked, controls hidden) when override is null', () => {
     const wrapper = mountToolbar(null)
-    expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true)
+    expect(wrapper.find('.gm-style-source-options button.active').text()).toBe('跟随世界设定')
     expect(wrapper.find('textarea').exists()).toBe(false)
   })
 
   it('unchecking emits an explicit neutral override and enables the controls', async () => {
     const wrapper = mountToolbar(null)
-    await wrapper.find('input[type="checkbox"]').setValue(false)
+    await wrapper.findAll('.gm-style-source-options button')[1].trigger('click')
     expect(lastGmStylePayload(wrapper)).toEqual({
       tone: '', verbosity: 'normal', pace: 'normal', custom_instructions: '',
     })
@@ -54,7 +54,7 @@ describe('GmToolbar GM narration style', () => {
         gm_style_override: { tone: '', verbosity: 'normal', pace: 'normal', custom_instructions: '' },
       },
     })
-    expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false)
+    expect(wrapper.find('.gm-style-source-options button.active').text()).toBe('本局自定义')
     expect(wrapper.find('textarea').exists()).toBe(true)
   })
 
@@ -71,14 +71,14 @@ describe('GmToolbar GM narration style', () => {
 
   it('restores the draft from game detail on reopen', () => {
     const wrapper = mountToolbar({ tone: 'literary', verbosity: 'detailed', pace: 'slow' })
-    expect((wrapper.find('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false)
+    expect(wrapper.find('.gm-style-source-options button.active').text()).toBe('本局自定义')
     const active = wrapper.findAll('.gm-style-options button.active').map(b => b.text())
     expect(active).toEqual(['文学', '详细', '慢'])
   })
 
   it('checking follow world again emits null', async () => {
     const wrapper = mountToolbar({ tone: 'dark' })
-    await wrapper.find('input[type="checkbox"]').setValue(true)
+    await wrapper.findAll('.gm-style-source-options button')[0].trigger('click')
     expect(lastGmStylePayload(wrapper)).toBeNull()
   })
 })

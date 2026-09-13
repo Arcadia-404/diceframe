@@ -32,6 +32,7 @@ class GameStateCodec:
             "world_id": instance.world_id,
             "rule_id": instance.rule_id,
             "adventure_binding": instance.adventure_binding,
+            "play_mode": instance.play_mode,
             "scene_image": instance.scene_image,
             "map_background": instance.map_background,
             "world_name": instance.world_name,
@@ -87,6 +88,7 @@ class GameStateCodec:
             "health_status": instance.health_status,
             "last_check": instance.last_check,
             "last_checks": instance.last_checks,
+            "manual_roll_requests": instance.manual_roll_requests,
             "last_overreach": instance.last_overreach,
             "round_checks_prepared": instance.round_checks_prepared,
             "round_start_snapshot": instance.round_start_snapshot,
@@ -125,7 +127,7 @@ class GameStateCodec:
         )
         instance = instance_type(
             game_key=tuple(data["game_key"]),
-            instance_schema_version=int(data.get("instance_schema_version", 6) or 6),
+            instance_schema_version=int(data.get("instance_schema_version", 11) or 11),
             run_id=str(data.get("run_id") or ""),
             memory_namespace=str(data.get("memory_namespace") or ""),
             economy=data.get("economy") or {},
@@ -136,6 +138,16 @@ class GameStateCodec:
             ruleset_runtime=data.get("ruleset_runtime") or {},
             ruleset_state=data.get("ruleset_state") or {},
             adventure_binding=data.get("adventure_binding") or {},
+            play_mode=(
+                str(data.get("play_mode") or "")
+                if str(data.get("play_mode") or "").casefold() in {"free", "adventure"}
+                else (
+                    "adventure"
+                    if isinstance(data.get("adventure_binding"), dict)
+                    and data.get("adventure_binding", {}).get("adventure_id")
+                    else "free"
+                )
+            ),
             event_ledger=data.get("event_ledger") or [],
             scene_image=data.get("scene_image", {}),
             map_background=data.get("map_background", {}),
@@ -207,6 +219,7 @@ class GameStateCodec:
             health_status=data.get("health_status", {}),
             last_check=data.get("last_check"),
             last_checks=data.get("last_checks") or [],
+            manual_roll_requests=data.get("manual_roll_requests") or [],
             last_overreach=data.get("last_overreach") or [],
             round_checks_prepared=bool(data.get("round_checks_prepared", False)),
             round_start_snapshot=data.get("round_start_snapshot") or {},

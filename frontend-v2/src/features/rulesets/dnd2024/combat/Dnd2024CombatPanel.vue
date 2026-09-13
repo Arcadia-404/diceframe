@@ -87,11 +87,12 @@ const copy = computed(() => locale.value.startsWith('zh') ? {
   sandboxHint: 'AI GM 没能把当前敌情匹配到合法遭遇。可以由 AI 临时准备，或手动选择一场自由遭遇。',
   unpreparedTitle: '当前剧情尚未配置专业战斗遭遇',
   unpreparedHint: '剧情已经进入交战态势，但这个冒险包没有为当前敌情绑定合法的专业遭遇。服务端不会用通用训练遭遇替代它。',
-  aiPrepare: 'AI 临时准备遭遇',
-  aiHint: 'AI 会参考当前剧情临时生成一场自由遭遇；不会修改冒险包内容。',
-  aiPreparing: 'AI 正在临时准备遭遇…',
+  aiPrepare: 'AI 生成临时遭遇',
+  aiHint: 'AI 会参考当前剧情生成一场临时自由遭遇；不会修改冒险包内容。',
+  aiPreparing: 'AI 正在生成临时遭遇…',
   aiFailed: '无法生成合法的临时遭遇。你仍可以手动选择自由遭遇。',
-  aiPreviewTag: 'AI 临时遭遇',
+  aiPreviewTag: 'AI 生成的临时遭遇',
+  aiDifficulty: '难度：普通（已按当前队伍强度限制）',
   aiConfirmStart: '确认进入战斗',
   aiRegenerate: '重新生成',
   aiEncounterNote: '这场战斗不会写入冒险包的正式遭遇定义；战斗结束后仍可继续当前冒险剧情。',
@@ -140,6 +141,7 @@ const copy = computed(() => locale.value.startsWith('zh') ? {
   aiPreparing: 'The AI is preparing an encounter…',
   aiFailed: 'Could not generate a legal temporary encounter. You can still prepare a free encounter manually.',
   aiPreviewTag: 'AI temporary encounter',
+  aiDifficulty: 'Difficulty: Standard (bounded to the current party)',
   aiConfirmStart: 'Confirm and start combat',
   aiRegenerate: 'Regenerate',
   aiEncounterNote: 'This combat is not written into the adventure package; the story continues afterwards.',
@@ -208,9 +210,15 @@ const requestedCombatPreset = computed(() => {
 const canPlanTemporaryEncounter = computed(() => Boolean(
   props.isGm
   && combat.value?.status !== 'active'
-  && narrativeCombatPending.value
   && encounterMode.value !== 'story'
   && !requestedCombatPreset.value
+  && !aiProposal.value
+  // 冒险包未准备遭遇时，只有 AI 已发出交战请求才开放兜底；
+  // 标准自由对局则直接允许 GM 从战斗工具发起临时遭遇。
+  && (
+    narrativeCombatPending.value
+    || Boolean(action('combat.start') || sandboxDeclared.value)
+  )
 ))
 const attackAction = computed(() => action('attack'))
 const spellAction = computed(() => action('cast_spell'))
@@ -795,10 +803,11 @@ onBeforeUnmount(() => { if (pollTimer) window.clearInterval(pollTimer) })
         </div>
 
         <p v-if="aiError && !aiProposal" class="combat-error" role="alert">{{ aiError }}</p>
-        <div v-if="isGm && aiProposal" class="guided-preset ai-encounter-preview">
+          <div v-if="isGm && aiProposal" class="guided-preset ai-encounter-preview">
           <span>{{ copy.aiPreviewTag }}</span>
-          <strong>{{ aiProposal.title }}</strong>
-          <p>{{ aiProposal.description }}</p>
+            <strong>{{ aiProposal.title }}</strong>
+            <p>{{ aiProposal.description }}</p>
+            <small class="encounter-source">{{ copy.aiDifficulty }}</small>
           <ul class="ai-encounter-enemies">
             <li v-for="enemy in aiProposal.enemies" :key="enemy.id">
               <header>
@@ -1097,8 +1106,8 @@ onBeforeUnmount(() => { if (pollTimer) window.clearInterval(pollTimer) })
 .guided-preset { display: grid; gap: 5px; padding: 11px 12px; border: 1px solid #a17b3f; border-radius: 10px; background: rgb(91 62 26 / 24%); }.guided-preset span, .guided-preset small { color: #f0c975; font-size: 12px; }.guided-preset strong { font-size: 17px; }.guided-preset p { margin: 0; color: #e3d9c6; line-height: 1.5; }
 .guided-preset.unprepared { border-color: #b0803c; background: rgb(70 48 20 / 34%); }
 .guided-preset.unprepared strong { color: #f4d9a4; }
-.guided-preset .unprepared-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-.guided-preset .unprepared-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.guided-preset .unprepared-actions { display: flex; column-gap: 14px; row-gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.guided-preset .unprepared-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 7px 12px; }
 .ai-encounter-preview { border-color: #6d6f4a; background: rgb(52 56 24 / 28%); }
 .ai-encounter-enemies { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .ai-encounter-enemies li { display: grid; gap: 3px; padding: 8px 10px; border: 1px solid #6d5a35; border-radius: 9px; background: rgb(14 20 24 / 42%); }

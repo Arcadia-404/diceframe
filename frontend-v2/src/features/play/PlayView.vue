@@ -37,6 +37,7 @@ import SceneGalleryModal from '@/components/play/SceneGalleryModal.vue'
 import PortraitPicker from '@/components/admin/PortraitPicker.vue'
 import AdventureSceneImagePicker from '@/components/common/AdventureSceneImagePicker.vue'
 import MapBackgroundSettingsModal from '@/components/play/MapBackgroundSettingsModal.vue'
+import ManualRollsPanel from '@/features/play/manual-rolls/ManualRollsPanel.vue'
 import RulesetCharacterCenterHost from '@/features/rulesets/RulesetCharacterCenterHost.vue'
 import RulesetPlayHost from '@/features/rulesets/RulesetPlayHost.vue'
 import { resolveRulesetPlayExtension } from '@/features/rulesets/registry'
@@ -1129,6 +1130,7 @@ onBeforeUnmount(() => {
           :reveal-checks="revealChecks"
           :current-user-id="actorId"
           :luck-busy-id="luckBusyId"
+          :manual-rolls="game.detail.value.manual_rolls"
           @refresh="game.refresh"
           @luck="onLuckDecision"
         />
@@ -1305,7 +1307,17 @@ onBeforeUnmount(() => {
           @open-character-center="showCharacterCenter = true"
         />
 
-      <HealthPanel v-if="game.isGm.value" :health="health" :detail="game.detail.value" :is-gm="game.isGm.value" @resolve="resolveHealth" />
+        <HealthPanel v-if="game.isGm.value" :health="health" :detail="game.detail.value" :is-gm="game.isGm.value" @resolve="resolveHealth" />
+        <ManualRollsPanel
+          :game-key="game.currentGame.value"
+          :run-id="String(game.detail.value.run_id || '')"
+          :actor-id="actorId"
+          :is-gm="game.isGm.value"
+          :preview="preview"
+          :delegate="delegate"
+          :last-activity="typeof game.detail.value.last_activity === 'string' ? game.detail.value.last_activity : undefined"
+          :players="game.players.value"
+        />
       </aside>
       <button
         v-if="mobilePanel"

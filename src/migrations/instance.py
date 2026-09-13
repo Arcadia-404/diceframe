@@ -17,7 +17,7 @@ from src.compat.dnd2024_adventure_bindings import apply_unreleased_adventure_bin
 
 logger = logging.getLogger("trpg")
 
-CURRENT_INSTANCE_SCHEMA_VERSION = 8
+CURRENT_INSTANCE_SCHEMA_VERSION = 11
 
 
 def _legacy_run_id(payload: Mapping[str, Any]) -> str:
@@ -96,6 +96,37 @@ def _migrate_v2_to_v3(payload: dict[str, Any]) -> dict[str, Any]:
 def _migrate_v3_to_v4(payload: dict[str, Any]) -> dict[str, Any]:
     """Advance the historical schema; retired quote data is discarded later."""
     payload["instance_schema_version"] = 4
+    return payload
+
+
+def _migrate_v8_to_v9(payload: dict[str, Any]) -> dict[str, Any]:
+    payload.setdefault("manual_roll_requests", [])
+    payload["instance_schema_version"] = 9
+    return payload
+
+
+def _migrate_v9_to_v10(payload: dict[str, Any]) -> dict[str, Any]:
+    binding = payload.get("adventure_binding")
+    payload["play_mode"] = "adventure" if isinstance(binding, dict) and binding.get("adventure_id") else "free"
+    payload["instance_schema_version"] = 10
+    return payload
+
+
+def _migrate_v10_to_v11(payload: dict[str, Any]) -> dict[str, Any]:
+    """Add explicit purpose metadata to manual roll requests.
+
+    Existing requests were record-only rolls, so ``free`` is the only safe
+    default. No old result is reinterpreted as a check.
+    """
+    requests = payload.get("manual_roll_requests")
+    if isinstance(requests, list):
+        for request in requests:
+            if not isinstance(request, dict):
+                continue
+            request.setdefault("purpose", "free")
+            request.setdefault("target", None)
+            request.setdefault("comparison", "at_least")
+    payload["instance_schema_version"] = 11
     return payload
 
 
@@ -211,6 +242,15 @@ def migrate_game_state_payload(data: Mapping[str, Any]) -> dict[str, Any]:
     if version == 7:
         payload = _migrate_v7_to_v8(payload)
         version = 8
+    if version == 8:
+        payload = _migrate_v8_to_v9(payload)
+        version = 9
+    if version == 9:
+        payload = _migrate_v9_to_v10(payload)
+        version = 10
+    if version == 10:
+        payload = _migrate_v10_to_v11(payload)
+        version = 11
     payload["instance_schema_version"] = version
     return payload
 

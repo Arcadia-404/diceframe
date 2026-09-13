@@ -284,6 +284,7 @@ export interface GameDetail {
   run_id?: string
   pending_luck_decisions?: CheckResult[]
   round_check_results?: CheckResult[]
+  manual_rolls?: ManualRollTimelineEntry[]
   total_tokens?: number
   token_budget_bump?: TokenBudgetBump | null
   ruleset_runtime?: RulesetRuntimeMeta & {
@@ -291,6 +292,28 @@ export interface GameDetail {
     state_schema_version?: number
   }
   [key: string]: unknown
+}
+
+export interface ManualRollTimelineEntry {
+  id: string
+  round_number: number
+  label?: string
+  formula: string
+  purpose?: 'free' | 'check' | 'contest' | string
+  target?: number | null
+  comparison?: 'at_least' | 'at_most' | string
+  status?: 'pending' | 'resolved' | 'cancelled' | string
+  target_names: Record<string, string>
+  results: Record<string, {
+    total?: number
+    rolls?: number[]
+    modifier?: number
+    natural?: number | null
+    target?: number
+    comparison?: 'at_least' | 'at_most' | string
+    verdict?: string
+  }>
+  created_at?: string
 }
 
 export interface TokenBudgetBump {
@@ -1029,6 +1052,15 @@ export interface RulesetTemporaryEncounter extends JsonObject {
   title: string
   description: string
   enemies: RulesetTemporaryEncounterEnemy[]
+  balance?: {
+    difficulty?: string
+    max_enemies?: number
+    max_total_hp?: number
+    max_enemy_hp?: number
+    max_armor_class?: number
+    max_attack_bonus?: number
+    max_attack_average_damage?: number
+  }
   planner?: JsonObject
 }
 

@@ -36,6 +36,7 @@ _ENEMY_FIELD_DEFAULTS: dict[str, int] = {
 _ATTACK_FIELD_DEFAULTS: dict[str, int] = {"range": 5}
 
 _ID_SANITIZE = re.compile(r"[^a-z0-9]+")
+_DAMAGE_RE = re.compile(r"^(\d+)d(\d+)([+-]\d+)?$")
 
 
 TEMPORARY_ENCOUNTER_TOOL: dict[str, Any] = {
@@ -183,6 +184,24 @@ def _generation_context(instance: Any, campaign: dict[str, Any]) -> dict[str, An
             "title": str(step.get("title") or "")[:200],
             "narration": str(step.get("narration") or step.get("objective") or "")[:600],
         }
+    dialogue: list[dict[str, Any]] = []
+    for entry in (getattr(instance, "log", []) or [])[-3:]:
+        if not isinstance(entry, dict):
+            continue
+        actions = []
+        for action in entry.get("actions") or entry.get("player_actions") or []:
+            if not isinstance(action, dict) or str(action.get("user_id") or "") == "system":
+                continue
+            uid = str(action.get("user_id") or "")
+            actions.append({
+                "actor": str((players.get(uid) or {}).get("character_name") or uid)[:60],
+                "text": str(action.get("text") or action.get("action") or "")[:400],
+            })
+        dialogue.append({
+            "round": int(entry.get("round", 0) or 0),
+            "actions": [item for item in actions if item["text"]],
+            "gm": str(entry.get("gm_response") or "")[:800],
+        })
     return {
         "scene": str(getattr(instance, "scene", "") or "")[:500],
         "recent_narration": [
@@ -190,13 +209,88 @@ def _generation_context(instance: Any, campaign: dict[str, Any]) -> dict[str, An
             for item in (getattr(instance, "log", []) or [])[-2:]
             if isinstance(item, dict) and item.get("gm_response")
         ],
+        "recent_dialogue": dialogue,
         "adventure": adventure,
         "encounter_request": {
             "status": str(request.get("status") or ""),
             "reason": str(request.get("reason") or "")[:300],
         },
         "party": {"size": len(members), "members": members},
+        "encounter_balance": temporary_encounter_limits(instance),
     }
+
+
+def temporary_encounter_limits(instance: Any) -> dict[str, int | float]:
+    """Derive a small, deterministic standard-difficulty budget from the party."""
+
+    players = getattr(instance, "players", {}) or {}
+    max_hps: list[int] = []
+    acs: list[int] = []
+    for player in players.values():
+        sheet = player.get("character_sheet") if isinstance(player, dict) else {}
+        sheet = sheet if isinstance(sheet, dict) else {}
+        canonical = sheet.get("ruleset_character")
+        canonical = canonical if isinstance(canonical, dict) else {}
+        resources = canonical.get("resources") if isinstance(canonical.get("resources"), dict) else {}
+        derived = canonical.get("derived") if isinstance(canonical.get("derived"), dict) else {}
+        max_hp = resources.get("max_hp", canonical.get("max_hp", sheet.get("max_hp", 8)))
+        armor_class = derived.get("armor_class", canonical.get("armor_class", sheet.get("armor_class", 12)))
+        try:
+            max_hps.append(max(1, int(max_hp)))
+        except (TypeError, ValueError):
+            max_hps.append(8)
+        try:
+            acs.append(max(1, int(armor_class)))
+        except (TypeError, ValueError):
+            acs.append(12)
+    party_size = max(1, len(players))
+    total_hp = sum(max_hps) or party_size * 8
+    lowest_hp = min(max_hps) if max_hps else 8
+    average_ac = sum(acs) / len(acs) if acs else 12
+    return {
+        "difficulty": "standard",
+        "max_enemies": min(MAX_TEMPORARY_ENEMIES, max(1, party_size * 2)),
+        "max_total_hp": max(24, int(total_hp * 2.0)),
+        "max_enemy_hp": max(8, int(lowest_hp * 1.5)),
+        "max_armor_class": max(14, int(round(average_ac)) + 3),
+        "max_attack_bonus": max(4, int(round(average_ac)) - 7),
+        "max_attack_average_damage": round(max(6.0, lowest_hp * 0.8), 1),
+    }
+
+
+def validate_temporary_encounter_balance(instance: Any, proposal: dict[str, Any]) -> None:
+    """Reject legal-but-deadly model output before it reaches the GM preview."""
+
+    limits = temporary_encounter_limits(instance)
+    enemies = proposal.get("enemies") if isinstance(proposal, dict) else None
+    if not isinstance(enemies, list):
+        raise ValueError("临时遭遇敌人数据无效")
+    if len(enemies) > int(limits["max_enemies"]):
+        raise ValueError(f"临时遭遇敌人数超过当前队伍的普通难度上限（{limits['max_enemies']}）")
+    total_hp = 0
+    for enemy in enemies:
+        hp = int(enemy.get("hp", 0) or 0)
+        total_hp += hp
+        if hp > int(limits["max_enemy_hp"]):
+            raise ValueError(f"敌人生命值超过当前队伍的普通难度上限（{limits['max_enemy_hp']}）")
+        if int(enemy.get("armor_class", 0) or 0) > int(limits["max_armor_class"]):
+            raise ValueError(f"敌人护甲等级超过当前队伍的普通难度上限（{limits['max_armor_class']}）")
+        for attack in enemy.get("attacks") or []:
+            attack_bonus = int(attack.get("attack_bonus", 0) or 0)
+            if attack_bonus > int(limits["max_attack_bonus"]):
+                raise ValueError(f"敌人攻击加值超过当前队伍的普通难度上限（+{limits['max_attack_bonus']}）")
+            match = _DAMAGE_RE.fullmatch(str(attack.get("damage") or ""))
+            if match is None:
+                continue
+            count, sides = int(match.group(1)), int(match.group(2))
+            modifier = int(match.group(3) or 0)
+            average = count * (sides + 1) / 2 + modifier
+            if average > float(limits["max_attack_average_damage"]):
+                raise ValueError(
+                    f"敌人单次攻击平均伤害超过当前队伍的普通难度上限（{limits['max_attack_average_damage']}）",
+                )
+    if total_hp > int(limits["max_total_hp"]):
+        raise ValueError(f"临时遭遇总生命值超过当前队伍的普通难度上限（{limits['max_total_hp']}）")
 
 
 def _coerce_bounded_int(
@@ -334,6 +428,8 @@ async def plan_temporary_encounter(
             continue
         arguments = call.get("arguments") if isinstance(call.get("arguments"), dict) else {}
         proposal = normalize_temporary_encounter(arguments)
+        validate_temporary_encounter_balance(instance, proposal)
+        proposal["balance"] = temporary_encounter_limits(instance)
         proposal["planner"] = {
             "provider": str(getattr(response, "provider_used", "") or ""),
             "native_tools": bool(getattr(response, "native_tools", False)),

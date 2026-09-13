@@ -228,6 +228,8 @@ class Dnd2024Runtime:
         ``unprepared`` unless the GM explicitly declares a sandbox encounter.
         """
 
+        if str(getattr(instance, "play_mode", "") or "").casefold() == "free":
+            return EncounterAccess.sandbox()
         story = resolve_story_encounter_access(instance, campaign)
         if story.mode == "story":
             # 剧情步骤声明了战斗，却没有可用的 canonical preset：这同样是

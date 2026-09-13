@@ -95,7 +95,7 @@ describe('D&D 2024 combat panel', () => {
     expect(wrapper.text()).toContain('No combat is active')
     expect(wrapper.text()).not.toContain('First Skirmish')
     expect(wrapper.find('.encounter-start select').exists()).toBe(false)
-    expect(wrapper.find('.ai-encounter-toggle').exists()).toBe(false)
+    expect(wrapper.find('.ai-encounter-toggle').exists()).toBe(true)
     await wrapper.get('.manual-encounter-toggle').trigger('click')
     expect(wrapper.text()).toContain('First Skirmish')
     await wrapper.get('.encounter-start .combat-primary').trigger('click')
