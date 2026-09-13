@@ -201,6 +201,7 @@ export const zhCN = {
   contentLanguage: '内容语言',
   chinese: '简体中文',
   english: 'English',
+  german: '德语',
   createTitle: '创建新冒险',
   recommendedRules: '推荐规则',
   recommended: '推荐',

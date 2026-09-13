@@ -201,6 +201,7 @@ export const en = {
   contentLanguage: 'Content Language',
   chinese: '简体中文',
   english: 'English',
+  german: 'German',
   createTitle: 'Create Adventure',
   recommendedRules: 'Recommended Rules',
   recommended: 'Recommended',

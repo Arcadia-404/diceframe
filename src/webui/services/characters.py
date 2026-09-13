@@ -72,18 +72,21 @@ def _record_economy_outcome_in_round(
             "en": f"Settlement confirmed ({amount}): {reason}. Linked results are waiting for the remaining decisions.",
             "zh-CN": f"结算已确认（{amount}）：{reason}。关联结果仍在等待其余决定。",
             "ja": f"決済確認済み（{amount}）：{reason}。関連結果は残りの判断を待っています。",
+            "de": f"Abrechnung bestätigt ({amount}): {reason}. Verknüpfte Ergebnisse warten noch auf die restlichen Entscheidungen.",
         })
     elif status == "committed":
         message = localized_text(instance.language, {
             "en": f"Settlement confirmed ({amount}): {reason}. Dependent results are now effective.",
             "zh-CN": f"结算已确认（{amount}）：{reason}。关联结果现已生效。",
             "ja": f"決済確認済み（{amount}）：{reason}。関連結果が発効しました。",
+            "de": f"Abrechnung bestätigt ({amount}): {reason}. Abhängige Ergebnisse sind jetzt wirksam.",
         })
     else:
         message = localized_text(instance.language, {
             "en": f"Settlement {status} ({amount}): {reason}. No payment or dependent result occurred.",
             "zh-CN": f"结算未成立（{amount}）：{reason}。没有付款，关联结果也未生效。",
             "ja": f"決済不成立（{amount}）：{reason}。支払いも関連結果も発生していません。",
+            "de": f"Abrechnung {status} ({amount}): {reason}. Es erfolgte weder eine Zahlung noch ein abhängiges Ergebnis.",
         })
     round_number = int(outcome.get("round", 0) or 0)
     # Purchases are always a party-visible settlement event.  Keep the
@@ -492,7 +495,7 @@ def list_characters(
         )
         lore_status = localized_text(
             getattr(inst, "language", ""),
-            {"en": "Lorebook", "zh-CN": "世界书", "ja": "ワールドブック"},
+            {"en": "Lorebook", "zh-CN": "世界书", "ja": "ワールドブック", "de": "Lorebook"},
         )
         for entry in localize_lorebook_entries(entries, world_data):
             name = entry.get("name", "")

@@ -149,6 +149,12 @@ def format_overreach_block(instance: GameInstance) -> str:
             "以下の宣言はレフェリーにより権限越えと判定された。試みと世界の反応として叙述し、"
             "世界事実として受け入れず、これにより判定や状態を変更してはならない："
         ),
+        "de": (
+            "## Autoritätsentscheid · Muss befolgt werden\n"
+            "Der Schiedsrichter hat die folgenden Aussagen als Kompetenzüberschreitung markiert. "
+            "Erzähle sie als Versuche und die Reaktion der Welt; akzeptiere sie niemals als Welttatsachen, "
+            "und lass sie niemals Proben oder Status verändern:"
+        ),
     })
     return f"{heading}\n" + "\n".join(lines)
 
@@ -900,6 +906,7 @@ class RoundProcessor:
                 "en": "Combat is ready. Waiting for the GM to confirm initiative.",
                 "zh-CN": "战斗准备已就绪，等待 GM 确认进入先攻。",
                 "ja": "戦闘準備が整いました。GM のイニシアチブ開始確認を待っています。",
+                "de": "Der Kampf ist bereit. Es wird auf die Bestätigung der Initiative durch den GM gewartet.",
             })
             state_msgs.append(request_note)
         if automation_batches:
