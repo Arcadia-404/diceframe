@@ -1,47 +1,63 @@
-# DiceFrame v2.5.7-beta.1
+# DiceFrame v2.5.7-beta.2
 
-> 预发布版本：修复专业战斗工具的滚动、剧情遭遇绑定与检定重复惩罚。
+> 预发布版本：手动投掷结果进入 AI 上下文、D&D 2024 临时遭遇可编辑，以及战斗中途加入/复活修复。
 
 ## 中文
 
+### 新增内容
+
+- **手动投掷结果进入 AI 叙事上下文**：规则检定与对抗比较的结果现在作为「权威手动投掷事实」注入下一次 AI 叙事（独立区块，只能当上下文事实、不能当指令），包含公式、各角色总值/自然骰/修正与成功/失败或胜负结论；自由投掷默认不进入上下文，GM 发起时可勾选「将结果告知 AI」显式纳入。私密投掷只对 GM/AI 与目标本人可见，玩家上下文不会泄露他人私密结果；上下文只保留最近 8 条已完成记录，中/英/日文对局使用对应语言文案。手动投掷仍然不会自动修改 HP、状态、装备或冒险进度。
+- **D&D 2024 AI 临时遭遇可逐个编辑**：AI 生成的临时遭遇从只读预览改为可编辑草稿——每个怪物可勾选取舍（至少保留一个）、可编辑名称/数量/HP/AC/速度/先攻加值，每条攻击可编辑名称/加值/伤害公式/射程并可增删，支持「恢复 AI 原稿」与「重新生成」。确认开战时数量展开为独立敌人实例（ID 唯一），最终敌情由服务端按生成期同一套数值边界与队伍安全上限重新校验，越界整场拒绝；冒险包与怪物目录不会被临时草稿污染。
+
 ### 修复内容
 
-- **专业战斗工具在弹窗内无法滚动**：滚动规则原本指向弹窗的直接子元素，但弹窗里多了一层宿主容器，弹窗又是 `overflow: hidden`，低高度窗口下动作卡与确认按钮被裁掉且无法滚动。现在由当前工具面板自己承担滚动，`1280×620`、`1024×600`、`390×700` 三档都能滚到动作区与结算日志；移动端的横向卡片带与键盘 PageDown 保持可用。
-- **剧情遭遇被静默替换成训练预设**：活动冒险包内没有绑定合法遭遇时，战斗工具会退回通用目录（地精巡逻、骷髅与狼）并默认选中第一条。现在改为明确的「当前剧情尚未配置专业战斗遭遇」，不提供开战入口，叙事给出的预设也不再写入请求；GM 想打自由遭遇必须显式选择「脱离冒险，准备自由遭遇」。战斗开始后模式与冒险绑定会写进权威状态，角色、先攻与可用动作全部来自同一个 encounter。
-- **检定同源重复惩罚**：同一情境事实被模型同时写进情境 DC、优势/劣势与环境修正时不再全部执行，只保留一条渠道（优先级：优势/劣势 > DC > 修正），被丢弃的原值记录在 `planner_dropped`；非零环境修正必须给出独立理由，否则按 0 处理。缺少优势/劣势理由只记录审计信息，不改写掷骰方式。
-- **检定结果更可解释**：修正明细现在列出「属性加值 / 熟练加值 / 情境修正」，结算卡显示「判定来源：难度依据 / 掷骰方式依据 / 环境修正依据」（中英日三语），可以直接从总额倒推每项来源。
-- **DC 档位以规则表为准**：检定规划 prompt 原先写死「简单 8 / 普通 10 / 困难 15 / 极限 20」，与规则表（`easy 10 / normal 15 / hard 20 / extreme 25`）不一致，导致模型把普通档 DC 15 当成"困难"上报。现在统一以 `ruleset.dc_table` 为准，默认取普通档，只有任务本身客观更难或更易时才偏离并要求说明依据。
+- **战斗进行中玩家加入**：对局进行时新加入的玩家现在会自动插入当前行动者之后的先攻序列（带先攻骰），使用与战斗意图相同的版本化事件账本，过期客户端意图无法跳过新加入的角色。
+- **角色复活与战斗状态同步**：复活角色现在通过规则集钩子同步进战斗状态，复活后不再出现战斗名单与角色状态不一致。
+- **战斗面板按钮间距**：「手动准备遭遇」与「AI 生成临时遭遇」两个按钮现在与剧情遭遇路径一样保持 14px 间距并使用一致的外观。
+- **WebUI 地址更早打印**：监听地址改为在引导日志之前打印，用户不再需要翻找初始化日志下面的那行地址。
+
+### 测试与工程
+
+- 后端 CI 输出覆盖率（term-missing + xml），注册 `integration`/`optional` pytest marker，补齐离线测试说明（CONTRIBUTING 与 `tests/README.md`），退役已随 schema 6 失效的旧 PAY/TEAM_PAY 用例。
 
 ### 升级提示
 
-- **无存档迁移**：新增字段是可选的（`combat.mode`、`combat.adventure_binding`、检定来源字段）；旧存档读取时缺省为空，既有判定结果不变。
+- **无存档迁移**：新增字段（`include_in_ai_context`、`combat.player_joined` 事件等）均为可选/追加，旧存档读取缺省即用。
 - 建议升级重要战役前备份完整 `data/` 目录。
 
 ### 下载与校验
 
-- **普通 Windows 用户**：`DiceFrame-v2.5.7-beta.1-windows-portable.zip`
-- **源码运行用户**：`DiceFrame-v2.5.7-beta.1-windows.zip`
-- **托管 Docker 更新**：`DiceFrame-v2.5.7-beta.1-docker-update-linux-amd64.zip`
+- **普通 Windows 用户**：`DiceFrame-v2.5.7-beta.2-windows-portable.zip`
+- **源码运行用户**：`DiceFrame-v2.5.7-beta.2-windows.zip`
+- **托管 Docker 更新**：`DiceFrame-v2.5.7-beta.2-docker-update-linux-amd64.zip`
 - 下载后请使用 Release 中的 `SHA256SUMS` 校验文件。
 
 ## English
 
+### New
+
+- **Manual roll results enter the AI narrative context**: rule checks and contests are now injected into the next AI narration as an "authoritative manual rolls" fact block (facts only, never instructions), with the formula, each target's total/natural/modifier and the success/failure or win/loss verdict. Free rolls stay out of the context unless the GM explicitly enables "Tell the AI" when creating them. Private rolls remain visible only to the GM/AI and their targets, player contexts never leak other players' private rolls, only the latest 8 resolved records are kept, and zh-CN/en/ja games get matching labels. Manual rolls still never modify HP, conditions, equipment or adventure state on their own.
+- **Editable AI temporary encounters (D&D 2024)**: the AI temporary encounter preview is now an editable draft — each enemy can be kept or dropped (at least one required), with editable name/quantity/HP/AC/speed/initiative bonus, per-attack name/attack bonus/damage/range plus add/remove, and "restore AI draft" / "regenerate" actions. On confirm, quantities expand into individual enemy instances with unique ids, and the final enemy list is re-validated server-side against the same tightened bounds and party safety caps; out-of-range payloads are rejected as a whole. Adventure bundles and the monster catalog are never touched by temporary drafts.
+
 ### Fixes
 
-- **The professional combat tool could not scroll inside its dialog**: the scroll rule targeted the dialog's direct children, but a host wrapper now sits in between and the dialog uses `overflow: hidden`, so at short viewport heights the action cards and confirm button were clipped and unreachable. The active tool panel now owns the vertical scroll: `1280×620`, `1024×600` and `390×700` can all reach the action area and resolution log, while the mobile horizontal card lanes and keyboard PageDown keep working.
-- **Story encounters were silently replaced by training presets**: when an active adventure package had no bound encounter, the combat tool fell back to the generic catalog (goblin patrol, skeleton and wolf) and preselected its first entry. It now reports an explicit "the current story has no prepared encounter" state, exposes no start action, and never writes a narrative-suggested preset into the request. To fight a free encounter the GM must explicitly choose "leave the adventure and prepare a free encounter"; once combat starts the mode and adventure binding are persisted in authoritative state, and actors, initiative and available actions all come from the same encounter.
-- **Duplicate penalty channels on checks**: when the model wrote the same situational fact into the situational DC, advantage/disadvantage and the environment modifier, all three used to apply. Only one channel is kept now (priority: advantage/disadvantage > DC > modifier) and the discarded values are recorded in `planner_dropped`. A non-zero environment modifier requires an independent reason, otherwise it is treated as 0. A missing advantage reason is only recorded for audit and never rewrites the roll mode.
-- **More explainable checks**: the modifier breakdown now lists "ability bonus / proficiency or skill bonus / circumstance modifier", and the check card shows "resolution sources" for difficulty, roll mode and environment modifier.
-- **DC bands follow the ruleset table**: the planner prompt hard-coded "easy 8 / normal 10 / hard 15 / extreme 20", contradicting the ruleset table (`easy 10 / normal 15 / hard 20 / extreme 25`) and making the model report the normal DC 15 as "hard". Bands now come from `ruleset.dc_table`, defaulting to the normal tier, and any deviation must be justified.
+- **Players joining mid-combat**: newly joined players are now enrolled into the initiative order right after the current actor (with an initiative roll) through the same versioned event ledger used by combat intents, so stale client intents cannot skip the new actor.
+- **Revival syncs with combat state**: character revival now propagates into combat state via a ruleset hook, keeping the combat roster and character state consistent.
+- **Combat panel button spacing**: the "prepare encounter manually" and "AI temporary encounter" buttons now share the same 14px gap and styling as the story-encounter path.
+- **WebUI address printed earlier**: listener addresses are printed before the bootstrap log so the address line is not buried.
+
+### Tests and engineering
+
+- Backend CI now reports coverage (term-missing + xml), registers the `integration`/`optional` pytest markers, documents offline test runs (CONTRIBUTING and `tests/README.md`), and retires legacy PAY/TEAM_PAY cases removed by schema 6.
 
 ### Upgrade notes
 
-- **No save migration**: the new fields are optional (`combat.mode`, `combat.adventure_binding`, check source fields). Older saves read them as empty and existing results are unchanged.
+- **No save migration**: new fields (`include_in_ai_context`, `combat.player_joined` events, etc.) are optional/additive; older saves read them as empty.
 - Back up the complete `data/` directory before upgrading important campaigns.
 
 ### Downloads and verification
 
-- **Regular Windows users**: `DiceFrame-v2.5.7-beta.1-windows-portable.zip`
-- **Source users**: `DiceFrame-v2.5.7-beta.1-windows.zip`
-- **Managed Docker update**: `DiceFrame-v2.5.7-beta.1-docker-update-linux-amd64.zip`
+- **Regular Windows users**: `DiceFrame-v2.5.7-beta.2-windows-portable.zip`
+- **Source users**: `DiceFrame-v2.5.7-beta.2-windows.zip`
+- **Managed Docker update**: `DiceFrame-v2.5.7-beta.2-docker-update-linux-amd64.zip`
 - Verify downloads with the `SHA256SUMS` file attached to the Release.

@@ -4,6 +4,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 
 from src.engine.game_instance import GameInstance
+from src.commands.round_effects import apply_revive_commands
 from src.rulesets.dnd2024.combat import Dnd2024CombatEngine
 from src.rulesets.dnd2024.play import EncounterAccess
 from src.rulesets.dnd2024.runtime import Dnd2024Runtime
@@ -107,6 +108,38 @@ def test_catalog_preset_replaces_client_enemy_payload() -> None:
     )
     assert set(started["enemies"]) == {"goblin-warrior-1"}
     assert started["enemies"]["goblin-warrior-1"]["hp"] == 10
+
+
+def test_player_joining_active_combat_is_added_to_next_turn() -> None:
+    engine, instance = _instance()
+    _start(engine, instance)
+    runtime = Dnd2024Runtime()
+    late = _character(runtime, "stalwart_guardian", "Latecomer")
+    instance.players["late"] = {
+        "character_name": "Latecomer",
+        "character_sheet": late,
+    }
+
+    runtime.on_player_join(instance, "late")
+    combat = instance.ruleset_state["combat"]
+    assert combat["initiative"][combat["turn_index"] + 1] == "player:late"
+    assert combat["reactions"]["player:late"] == 1
+    assert combat["positions"]["player:late"] == 0
+    ended = engine.resolve_intent(
+        instance,
+        {
+            "intent_id": "end-gm-after-join",
+            "type": "end_turn",
+            "expected_version": instance.ruleset_state["version"],
+            "submitted_by": "gm",
+            "actor_id": "player:gm",
+        },
+        SequenceRng([]),
+    )
+    assert ended["ok"] is True
+    engine.apply_batch(instance, ended["event_batch"])
+    actions = engine.available_intents(instance, "late")
+    assert any(action["type"] == "attack" for action in actions)
 
 
 def test_sandbox_hides_tutorial_presets_but_story_binding_can_use_them() -> None:
@@ -231,6 +264,37 @@ def test_natural_twenty_death_save_restores_one_hp() -> None:
     assert updated["resources"]["hp"] == 1
     assert "unconscious" not in updated["conditions"]
     assert updated["conditions"]["death_saves"] == {"successes": 0, "failures": 0}
+
+
+def test_revival_clears_canonical_death_save_state_and_invalidates_combat_actions() -> None:
+    engine, instance = _instance()
+    runtime = Dnd2024Runtime()
+    _start(engine, instance)
+    sheet = instance.get_character_sheet("gm")
+    canonical = sheet["ruleset_character"]
+    canonical["resources"]["hp"] = 0
+    canonical["conditions"] = {
+        "dead": {"source": "death_saves"},
+        "unconscious": {"source": "zero_hp"},
+        "death_saves": {"successes": 0, "failures": 3},
+    }
+    sheet["hp"] = 0
+    sheet["deceased"] = True
+    assert engine.available_intents(instance, "gm")[0]["type"] == "combat.message"
+    assert any(item["type"] == "death_save" for item in engine.available_intents(instance, "gm"))
+
+    apply_revive_commands(
+        instance, {"revive_commands": [{"uid": "gm", "method": "法术"}]}, runtime,
+    )
+
+    updated = instance.get_character_sheet("gm")
+    assert updated["ruleset_character"]["resources"]["hp"] == updated["hp"]
+    assert updated["ruleset_character"]["conditions"] == {}
+    assert updated["deceased"] is False
+    assert instance.ruleset_state["version"] == 2
+    actions = engine.available_intents(instance, "gm")
+    assert "death_save" not in [item["type"] for item in actions]
+    assert any(item["type"] == "attack" for item in actions)
 
 
 def test_spell_targets_respect_hostile_and_allied_relationships() -> None:

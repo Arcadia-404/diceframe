@@ -91,6 +91,18 @@ class CombatValidationMixin:
     def _validate_enemies(enemies: Any) -> None:
         validate_enemy_profiles(enemies)
 
+    @staticmethod
+    def _validate_temporary_encounter_enemies(instance: Any, enemies: Any) -> None:
+        # 延迟导入：director 层复用本模块的 validate_enemy_profiles，
+        # 顶层导入会形成循环依赖。
+        from src.rulesets.dnd2024.director.temporary_encounter import (
+            validate_final_temporary_enemies,
+        )
+        try:
+            validate_final_temporary_enemies(instance, enemies)
+        except ValueError as exc:
+            raise CombatIntentError(str(exc)) from None
+
     def _validate(self, instance: Any, intent: dict[str, Any]) -> None:
         if not isinstance(intent, dict):
             raise CombatIntentError("intent must be an object")
@@ -169,6 +181,13 @@ class CombatValidationMixin:
                 raise CombatIntentError("encounter preset is not available")
             if not preset_id:
                 self._validate_enemies(intent.get("enemies"))
+                if bool(intent.get("temporary_encounter")):
+                    # AI 临时遭遇确认：编辑并展开后的最终 payload 在权威入口
+                    # 重走生成期同一套收紧范围与队伍安全上限。该标记只追加
+                    # 校验，不存在“跳过校验”的语义，也不放宽既有边界。
+                    self._validate_temporary_encounter_enemies(
+                        instance, intent.get("enemies"),
+                    )
             # With a preset, the resolver replaces any submitted enemy list
             # with the catalog entry. Enemy data is intentionally optional so
             # clients cannot smuggle a forged stat block into combat.

@@ -847,7 +847,7 @@ class RoundProcessor:
             except (ValueError, KeyError, TypeError):
                 # The advisory encounter request remains visible for GM review.
                 logger.exception("D&D Director automation was rejected; waiting for GM")
-        apply_revive_commands(instance, data)
+        apply_revive_commands(instance, data, runtime)
         system_changes.extend(apply_growth_rewards(
             instance, data, response, rule, self._progression, runtime,
         ))
