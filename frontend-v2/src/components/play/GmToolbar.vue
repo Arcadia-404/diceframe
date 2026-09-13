@@ -155,7 +155,7 @@ function awardXp(userId: string) {
         <button @click="emit('world-switch')"><NIcon :component="BookOutline" size="14" /> {{ t('switchLorebook') }}</button>
       </div>
     </details>
-    <details class="perc gm-perc gm-console-section" open><summary>{{ t('gmStyleTitle') }}</summary>
+    <details class="perc gm-perc gm-console-section" open><summary>{{ t('gmNarrativeStyleTitle') }}</summary>
       <div class="gm-console-section-actions">
         <button @click="emit('mode')"><NIcon :component="PeopleOutline" size="14" /> {{ t('switchToMode', { mode: detail.solo_mode ? t('multiplayer') : t('solo') }) }}</button>
         <label class="gm-narrative-setting">

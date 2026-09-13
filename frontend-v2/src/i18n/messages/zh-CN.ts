@@ -248,6 +248,7 @@ export const zhCN = {
   narrativeThirdPersonHint: '用角色名区分每名玩家，更适合多人公共叙事。',
   narrativeChangeHint: '下一次 AI GM 回复起生效，不改写已有记录。',
   gmStyleTitle: '风格',
+  gmNarrativeStyleTitle: '叙事与风格',
   gmStyleFollowWorld: '跟随世界设定',
   gmStyleOverrideCurrent: '本局自定义',
   gmStyleTone: '文风',

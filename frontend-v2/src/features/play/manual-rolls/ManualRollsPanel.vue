@@ -67,12 +67,12 @@ function purposeText(value?: ManualRollPurpose) { return value === 'check' ? cop
 <template>
   <section v-if="canCreate || visibleRequests.length" class="manual-rolls panel" data-testid="manual-rolls">
     <div class="manual-rolls-header"><div><small>GM</small><h3>{{ copy.title }}</h3></div><button v-if="canCreate" type="button" class="primary" @click="openComposer">{{ copy.request }}</button></div>
-    <div v-if="viewerIsGm" class="manual-roll-list">
+    <div class="manual-roll-list">
       <article v-for="request in visibleRequests" :key="request.id" class="manual-roll-card">
         <strong>{{ request.label || copy.empty }} · {{ request.formula }} · {{ purposeText(request.purpose) }}</strong>
         <span>{{ statusText(request.status) }} · {{ request.target_uids.map(uid => request.target_names[uid] || uid).join(', ') }}</span>
         <p v-if="resultText(request)">{{ resultText(request) }}</p>
-        <div v-if="request.status === 'pending'" class="manual-roll-actions">
+        <div v-if="viewerIsGm && request.status === 'pending'" class="manual-roll-actions">
           <button v-for="uid in request.target_uids" :key="uid" type="button" :disabled="busy || preview || Boolean(request.results[uid])" @click="resolve(request, uid)">{{ copy.gmOverride }} · {{ request.target_names[uid] || uid }}</button>
           <button type="button" class="danger-quiet" :disabled="busy || preview" @click="cancel(request)">{{ copy.cancel }}</button>
         </div>
