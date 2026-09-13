@@ -66,6 +66,7 @@ from src.engine.economy import filter_unconfirmed_purchase_grants, has_pending_i
 from src.engine import combat_narrative
 from src.engine.game_instance import GameInstance, GameState, _snapshot_players
 from src.engine.language import localized_text
+from src.llm.parser import sanitize_narration
 from src.imagegen import (
     ImageGenerationError,
     ImageGenerationRequest,
@@ -95,6 +96,31 @@ def _last_scene_image_prompt(instance: GameInstance) -> str:
         if isinstance(record, dict) and record.get("status") == "ready":
             return str(record.get("prompt") or "")
     return ""
+
+
+def _build_recent_public_narration_context(
+    instance: GameInstance,
+    *,
+    rounds: int = 3,
+    max_chars: int = 2400,
+) -> str:
+    """收集最近若干回合已公开给玩家的 GM 正文，供叙事二次压缩阶段核对 QUICK_ACTIONS（#272）。
+
+    数据源只有 instance.log 的 gm_response（玩家已看到的公开内容），经
+    sanitize_narration 清理；绝不接入完整 context / 世界书 / 记忆 / 私密日志——
+    QUICK_ACTIONS 的知识边界以玩家已知为限。无历史时返回空串。总长超限时
+    丢弃更旧的回合，保留最近内容。
+    """
+    chunks: list[str] = []
+    for entry in list(getattr(instance, "log", None) or [])[-rounds:]:
+        text = sanitize_narration(str(entry.get("gm_response", "") or "")).strip()
+        if text:
+            chunks.append(f"Round {entry.get('round', '?')}:\n{text}")
+    while chunks and sum(len(chunk) for chunk in chunks) + 2 * (len(chunks) - 1) > max_chars:
+        chunks.pop(0)
+    if not chunks:
+        return ""
+    return "\n\n".join(chunks)
 
 
 def format_overreach_block(instance: GameInstance) -> str:
@@ -709,7 +735,8 @@ class RoundProcessor:
         response, data = await call_llm_with_tag_retry(
             self.llm_client, instance, gm_prompt, context, combat_model,
             dice_block, self.narrative_max_tokens, actions_text,
-            on_delta=on_delta, on_reset=on_reset)
+            on_delta=on_delta, on_reset=on_reset,
+            public_narration_context=_build_recent_public_narration_context(instance))
         current_instance = self.registry.get(instance.game_key)
         if (
             current_instance is not instance
