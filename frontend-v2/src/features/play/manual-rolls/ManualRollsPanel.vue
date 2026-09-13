@@ -59,7 +59,7 @@ function statusText(status: ManualRollRequest['status']) { return copy.value[sta
 <template>
   <section v-if="canCreate || visibleRequests.length" class="manual-rolls panel" data-testid="manual-rolls">
     <div class="manual-rolls-header"><div><small>GM</small><h3>{{ copy.title }}</h3></div><button v-if="canCreate" type="button" class="primary" @click="openComposer">{{ copy.request }}</button></div>
-    <p v-if="rolls.error" class="manual-roll-error">{{ rolls.error }} <button type="button" @click="rolls.refresh">{{ copy.retry }}</button></p>
+    <p v-if="rolls.error" class="manual-roll-error"><span>{{ rolls.error }}</span><button type="button" @click="rolls.refresh">{{ copy.retry }}</button></p>
     <div v-if="viewerIsGm" class="manual-roll-list">
       <article v-for="request in visibleRequests" :key="request.id" class="manual-roll-card">
         <strong>{{ request.label || copy.empty }} · {{ request.formula }}</strong>
@@ -92,5 +92,194 @@ function statusText(status: ManualRollRequest['status']) { return copy.value[sta
 </template>
 
 <style scoped>
-.manual-rolls{display:grid;gap:10px;padding:12px;border-color:rgb(190 151 74 / 38%);background:linear-gradient(145deg,rgb(31 39 46 / 96%),rgb(18 27 34 / 98%));box-shadow:inset 0 1px rgb(255 255 255 / 4%)}.manual-rolls-header{display:flex;gap:10px;align-items:center;justify-content:space-between}.manual-rolls-header>div{display:flex;align-items:center;gap:8px;min-width:0}.manual-rolls-header small{display:grid;place-items:center;width:26px;height:26px;border:1px solid #b99a5a;border-radius:50%;color:#e5c87f;font-size:10px;font-weight:800}.manual-rolls-header h3{margin:0;color:#efe2bd;font-size:14px;white-space:nowrap}.manual-rolls button{min-height:34px;white-space:nowrap}.manual-rolls-header .primary{padding:6px 10px;border-color:#63bbb8;background:linear-gradient(180deg,#204c55,#173740);color:#dcffff}.manual-roll-list{display:grid;gap:8px}.manual-roll-card{display:grid;gap:5px;padding:9px 10px;border:1px solid rgb(190 151 74 / 28%);border-radius:9px;background:rgb(10 18 25 / 38%)}.manual-roll-card>span{color:var(--df-text-muted);font-size:12px}.manual-roll-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.manual-roll-actions button{flex:1 1 auto;padding:5px 8px}.danger-quiet{color:#f0a1a1}.manual-roll-badge{width:100%;text-align:left}.manual-roll-error{display:grid;gap:7px;margin:0;color:#e7b5a4;font-size:12px}.manual-roll-error button{justify-self:start}.manual-rolls fieldset{display:grid;gap:.35rem;margin:.45rem 0}.manual-rolls input,.manual-rolls select{max-width:100%}.manual-rolls .form-check{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;margin:0}
+.manual-rolls {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border-color: rgb(190 151 74 / 38%);
+  background: linear-gradient(145deg, rgb(31 39 46 / 96%), rgb(18 27 34 / 98%));
+  box-shadow: inset 0 1px rgb(255 255 255 / 4%);
+}
+
+.manual-rolls-header {
+  display: flex;
+  min-width: 0;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.manual-rolls-header > div {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  align-items: center;
+}
+
+.manual-rolls-header small {
+  display: grid;
+  flex: 0 0 26px;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid #b99a5a;
+  border-radius: 50%;
+  color: #e5c87f;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.manual-rolls-header h3 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #efe2bd;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manual-rolls button {
+  min-height: 34px;
+  white-space: nowrap;
+}
+
+.manual-rolls-header .primary {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-color: #63bbb8;
+  background: linear-gradient(180deg, #204c55, #173740);
+  color: #dcffff;
+}
+
+.manual-roll-list {
+  display: grid;
+  gap: 8px;
+}
+
+.manual-roll-card {
+  display: grid;
+  gap: 5px;
+  padding: 9px 10px;
+  border: 1px solid rgb(190 151 74 / 28%);
+  border-radius: 9px;
+  background: rgb(10 18 25 / 38%);
+}
+
+.manual-roll-card > span {
+  color: var(--df-text-muted);
+  font-size: 12px;
+}
+
+.manual-roll-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.manual-roll-actions button {
+  flex: 1 1 auto;
+  padding: 5px 8px;
+}
+
+.danger-quiet {
+  color: #f0a1a1;
+}
+
+.manual-roll-badge {
+  width: 100%;
+  text-align: left;
+}
+
+.manual-roll-error {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgb(210 123 102 / 38%);
+  border-radius: 7px;
+  background: rgb(88 38 35 / 22%);
+  color: #e7b5a4;
+  font-size: 12px;
+}
+
+.manual-roll-error span {
+  min-width: 0;
+  flex: 1 1 120px;
+}
+
+.manual-roll-error button {
+  min-height: 28px;
+  padding: 4px 9px;
+}
+
+.manual-rolls input,
+.manual-rolls select {
+  max-width: 100%;
+}
+
+.manual-roll-targets {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid rgb(190 151 74 / 35%);
+  border-radius: 8px;
+  background: rgb(10 18 25 / 35%);
+}
+
+.manual-roll-targets legend {
+  padding: 0 5px;
+  color: #efe2bd;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.manual-roll-targets .form-check {
+  display: flex;
+  min-height: 36px;
+  box-sizing: border-box;
+  width: 100%;
+  gap: 9px;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid rgb(122 153 158 / 28%);
+  border-radius: 6px;
+  background: rgb(18 35 43 / 70%);
+  color: var(--df-text-secondary);
+  cursor: pointer;
+}
+
+.manual-roll-targets .form-check:hover {
+  border-color: rgb(99 187 184 / 72%);
+  background: rgb(28 55 63 / 82%);
+}
+
+.manual-roll-targets .form-check input[type='checkbox'] {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  appearance: none;
+  border: 1px solid #aa8a4d;
+  border-radius: 4px;
+  background: #0c1a21;
+  cursor: pointer;
+}
+
+.manual-roll-targets .form-check input[type='checkbox']:checked {
+  border-color: #e0b65d;
+  background: #d99b45 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m3 8 3 3 7-7' fill='none' stroke='%23122128' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 13px 13px no-repeat;
+}
+
+.manual-roll-targets .form-check input[type='checkbox']:focus-visible {
+  outline: 2px solid #63bbb8;
+  outline-offset: 2px;
+}
 </style>
