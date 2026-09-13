@@ -405,4 +405,20 @@ describe('D&D 2024 ability page: point buy vs background bonuses', () => {
     expect(panel.text()).toContain('购点已使用 27 / 27（剩余 0）')
     expect(chaLabel.text()).toContain('= 15')
   })
+
+  it('hides the class-recommendation shortcut when scores are rolled', async () => {
+    const wrapper = mountBuilder({})
+    await flushPromises()
+    await reachAbilityStep(wrapper)
+
+    // point buy 下快捷按钮可见
+    expect(wrapper.findAll('button').some(item => item.text().includes('使用职业推荐'))).toBe(true)
+
+    // 切到掷骰生成后按钮必须消失：不允许把职业推荐数组伪装成掷骰结果
+    const rolled = wrapper.findAll('.ability-methods label').find(item => item.text().includes('掷骰生成'))!
+    await rolled.find('input').setValue(true)
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('button').some(item => item.text().includes('使用职业推荐'))).toBe(false)
+  })
 })
