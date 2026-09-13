@@ -54,6 +54,22 @@ PR 模板中的风险勾选用于提醒 reviewer 关注 API、存档、权限、
 
 ## 本地验证
 
+后端测试完全离线运行，测试使用临时目录和 fake 外部服务，不需要 API key：
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q --cov=src --cov-report=term-missing
+```
+
+只运行一组测试时可以指定文件或关键字：
+
+```bash
+python -m pytest -q tests/integration/test_permissions.py
+python -m pytest -q -k economy
+```
+
+新增 skip 前应说明外部条件，并优先使用明确的 pytest marker，不能用 skip 掩盖产品回归。
+
 前端改动至少运行：
 
 ```bash
