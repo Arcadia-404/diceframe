@@ -1097,8 +1097,8 @@ onBeforeUnmount(() => { if (pollTimer) window.clearInterval(pollTimer) })
 .guided-preset { display: grid; gap: 5px; padding: 11px 12px; border: 1px solid #a17b3f; border-radius: 10px; background: rgb(91 62 26 / 24%); }.guided-preset span, .guided-preset small { color: #f0c975; font-size: 12px; }.guided-preset strong { font-size: 17px; }.guided-preset p { margin: 0; color: #e3d9c6; line-height: 1.5; }
 .guided-preset.unprepared { border-color: #b0803c; background: rgb(70 48 20 / 34%); }
 .guided-preset.unprepared strong { color: #f4d9a4; }
-.guided-preset .unprepared-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-.guided-preset .unprepared-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.guided-preset .unprepared-actions { display: flex; column-gap: 14px; row-gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.guided-preset .unprepared-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 7px 12px; }
 .ai-encounter-preview { border-color: #6d6f4a; background: rgb(52 56 24 / 28%); }
 .ai-encounter-enemies { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
 .ai-encounter-enemies li { display: grid; gap: 3px; padding: 8px 10px; border: 1px solid #6d5a35; border-radius: 9px; background: rgb(14 20 24 / 42%); }

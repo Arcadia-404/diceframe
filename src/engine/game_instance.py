@@ -109,7 +109,7 @@ class GameInstance:
     """
 
     game_key: tuple[str, str, str]      # (platform, target_id, account_id)
-    instance_schema_version: int = 6
+    instance_schema_version: int = 9
     run_id: str = field(default_factory=lambda: f"run_{uuid4().hex}")
     memory_namespace: str = ""
     economy: dict[str, Any] = field(default_factory=dict)
@@ -118,6 +118,10 @@ class GameInstance:
     ruleset_runtime: dict[str, Any] = field(default_factory=dict)
     ruleset_state: dict[str, Any] = field(default_factory=dict)
     adventure_binding: dict[str, Any] = field(default_factory=dict)
+    # Explicitly separates standard free play from an adventure story flow.
+    # Empty means legacy/in-memory construction; runtime derives from the
+    # bound adventure until creation/migration writes an explicit mode.
+    play_mode: str = ""
     event_ledger: list[dict[str, Any]] = field(default_factory=list)
     scene_image: dict[str, str] = field(default_factory=dict)
     map_background: dict[str, str] = field(default_factory=dict)
@@ -181,6 +185,7 @@ class GameInstance:
     # 判定卡片：最近一次检定的结构化结果（前端渲染用）
     last_check: CheckResult | None = None
     last_checks: list[CheckResult] = field(default_factory=list)
+    manual_roll_requests: list[dict[str, Any]] = field(default_factory=list)
     # 本轮规划发现的无价购买意图（payer/target/quantity）。只在回合内存中
     # 传递：供结算阶段的同轮 LOOT 拦截使用，从不持久化、不产生金额。
     round_unpriced_purchase_intents: list[dict] = field(default_factory=list)

@@ -249,6 +249,7 @@ export const en = {
   narrativeChangeHint: 'Applies from the next AI GM response and does not rewrite history.',
   gmStyleTitle: 'GM Narration Style',
   gmStyleFollowWorld: 'Follow world settings',
+  gmStyleOverrideCurrent: 'Customize this game',
   gmStyleTone: 'Tone',
   gmStyleToneDefault: 'Default',
   gmStyleToneLiterary: 'Literary',

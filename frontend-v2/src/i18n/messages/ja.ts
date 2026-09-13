@@ -249,6 +249,7 @@ export const ja = {
   narrativeChangeHint: '次の AI GM 応答から反映され、過去の記録は書き換えません。',
   gmStyleTitle: 'GM ナラティブスタイル',
   gmStyleFollowWorld: '世界設定に従う',
+  gmStyleOverrideCurrent: 'このゲームで設定',
   gmStyleTone: '文体',
   gmStyleToneDefault: 'デフォルト',
   gmStyleToneLiterary: '文学的',

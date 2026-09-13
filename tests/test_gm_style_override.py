@@ -248,6 +248,13 @@ def test_game_detail_hides_gm_style_override_from_players(tmp_path):
     assert gm_view is not None
     assert gm_view["gm_style_override"]["custom_instructions"].endswith("镇长。")
 
+    # 房主登录态可能没有 ?user=，但仍必须能读取控台自己的设置。
+    owner_view = game_detail(
+        dependencies, "web|style|bot", viewer_is_gm=True,
+    )
+    assert owner_view is not None
+    assert owner_view["gm_style_override"]["tone"] == "dark"
+
     player_view = game_detail(dependencies, "web|style|bot", viewer_uid="ally")
     assert player_view is not None
     assert player_view["gm_style_override"] is None

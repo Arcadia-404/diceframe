@@ -90,6 +90,7 @@ from src.webui.routes.game_lifecycle_routes import (
     api_switch_world,
     api_create_from_seed,
 )
+from src.webui.routes.manual_roll_routes import api_manual_roll_list, api_manual_roll_create, api_manual_roll_resolve, api_manual_roll_cancel
 
 
 async def _read_save_upload(reader) -> bytes:
@@ -112,6 +113,10 @@ def register_games(app: web.Application) -> None:
     app.router.add_post("/api/games/{game_key}/claim-gm", api_claim_gm_session)
     app.router.add_get("/api/games/{game_key}/multiplayer", api_multiplayer_status)
     app.router.add_get("/api/games/{game_key}/player-context", api_player_context)
+    app.router.add_get("/api/games/{game_key}/roll-requests", api_manual_roll_list)
+    app.router.add_post("/api/games/{game_key}/roll-requests", api_manual_roll_create)
+    app.router.add_post("/api/games/{game_key}/roll-requests/{request_id}/roll", api_manual_roll_resolve)
+    app.router.add_post("/api/games/{game_key}/roll-requests/{request_id}/cancel", api_manual_roll_cancel)
     app.router.add_get("/api/games/{game_key}/health", api_game_health)
     app.router.add_post(
         "/api/games/{game_key}/health/{event_id}/{action:resolve|ignore}",

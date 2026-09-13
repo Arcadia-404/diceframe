@@ -25,7 +25,7 @@ from src.rulesets.builtin import (
 )
 from src.rulesets.registry import RulesetRuntimeRegistry
 from src.engine.world_template import load_world_template
-from src.webui.services import adventures, asr, avatars, bot_access, bot_extensions, character_cards, characters, content, content_pack_maps, game_controls, game_lifecycle, game_master, game_media, game_packages, game_queries, generated_images, generation, knowledge, kp_questions, logs, map_backgrounds, maps, tavern, turns, worlds, rules, ruleset_advancement, ruleset_builder, ruleset_gameplay, ruleset_rest, plugins, scene_images, speech, system, tunnel, announcements, assistant, hub, legal
+from src.webui.services import adventures, asr, avatars, bot_access, bot_extensions, character_cards, characters, content, content_pack_maps, game_controls, game_lifecycle, game_master, game_media, game_packages, game_queries, generated_images, generation, knowledge, kp_questions, logs, map_backgrounds, maps, tavern, turns, worlds, rules, ruleset_advancement, ruleset_builder, ruleset_gameplay, ruleset_rest, plugins, scene_images, speech, system, tunnel, announcements, assistant, hub, legal, manual_rolls
 from src.webui.services import combat_extension as combat_extension_service
 from src.webui.services import ruleset_characters
 from src.webui.services import memory as memory_service
@@ -346,6 +346,7 @@ class WebAPI:
                 load_rule=self._load_rule_for_game,
             )
         )
+        self._manual_rolls = manual_rolls.ManualRollService(manual_rolls.ManualRollDependencies(_parse_game_key, self._reg.get, self._reg.save))
         self._game_master = game_master.GameMasterService(
             game_master.GameMasterDependencies(
                 parse_game_key=_parse_game_key,
@@ -1131,13 +1132,35 @@ class WebAPI:
     def list_games(self) -> dict[str, Any]:
         return game_queries.list_games(self._game_query_dependencies)
 
-    def game_detail(self, game_key: str, viewer_uid: str = "") -> dict[str, Any] | None:
-        return game_queries.game_detail(self._game_query_dependencies, game_key, viewer_uid)
+    def game_detail(
+        self,
+        game_key: str,
+        viewer_uid: str = "",
+        viewer_is_gm: bool = False,
+    ) -> dict[str, Any] | None:
+        return game_queries.game_detail(
+            self._game_query_dependencies,
+            game_key,
+            viewer_uid,
+            viewer_is_gm,
+        )
 
     def get_game_instance(self, game_key: str):
         """Resolve a public game key without exposing registry/parser internals."""
 
         return self._reg.get(_parse_game_key(game_key))
+
+    def manual_roll_requests(self, game_key: str, user_id: str):
+        return self._manual_rolls.list(game_key, user_id)
+
+    async def create_manual_roll_request(self, game_key, user_id, body):
+        return await self._manual_rolls.create(game_key, user_id, body)
+
+    async def resolve_manual_roll_request(self, game_key, user_id, request_id, body):
+        return await self._manual_rolls.resolve(game_key, user_id, request_id, body)
+
+    async def cancel_manual_roll_request(self, game_key, user_id, request_id, body):
+        return await self._manual_rolls.cancel(game_key, user_id, request_id, body)
 
     async def save_game_instance(self, instance) -> None:
         """Persist an already-authorized aggregate through the application facade."""
@@ -2013,7 +2036,9 @@ class WebAPI:
                            scene_image: dict[str, Any] | None = None,
                            map_background: dict[str, Any] | None = None,
                            adventure_id: str = "",
+                           play_mode: str = "",
                            narrative_perspective: str = "auto",
+                           gm_style_override: dict[str, Any] | None = None,
                            advancement_mode: str = "milestone",
                            advancement_authority: str = "ai_gm") -> dict[str, Any]:
         return await self._game_lifecycle.create_game(
@@ -2026,7 +2051,9 @@ class WebAPI:
             room_password=room_password, language=language,
             scene_image=scene_image, map_background=map_background,
             adventure_id=adventure_id,
+            play_mode=play_mode,
             narrative_perspective=narrative_perspective,
+            gm_style_override=gm_style_override,
             advancement_mode=advancement_mode,
             advancement_authority=advancement_authority,
         )

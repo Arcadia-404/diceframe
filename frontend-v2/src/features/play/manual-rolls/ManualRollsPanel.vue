@@ -1,0 +1,96 @@
+<script setup lang="ts">
+import { computed, ref, toRef } from 'vue'
+import Modal from '@/components/ui/Modal.vue'
+import { useLocale } from '@/composables/useLocale'
+import { useManualRolls } from './useManualRolls'
+import type { ManualRollRequest, ManualRollVisibility } from './types'
+
+const props = defineProps<{
+  gameKey: string; runId: string; actorId: string; isGm: boolean; lastActivity?: string; preview?: boolean; delegate?: boolean
+  players: Array<{ user_id: string; character_name: string }>
+}>()
+const { locale } = useLocale()
+const zh = computed(() => locale.value.startsWith('zh'))
+const copy = computed(() => zh.value ? {
+  title: '手动投掷', request: '发起投掷', retry: '重试', empty: '手动投掷',
+  pending: '等待投掷', resolved: '已完成', cancelled: '已取消', rollFor: '代投',
+  gmOverride: 'GM 代投', requestNotice: 'GM 请求你进行一次投掷，请确认后提交结果。',
+  cancel: '取消请求', pendingRoll: '待投掷', dialog: '发起手动投掷', label: '说明',
+  labelPlaceholder: '例如：察觉检定', formula: '骰子公式', visibility: '可见范围',
+  party: '全队可见', private: '仅目标可见', targets: '投掷角色', later: '稍后',
+  send: '发送请求', sending: '发送中…', roll: '投掷', rolling: '投掷中…',
+  chooseTarget: '请至少选择一名投掷角色。',
+} : {
+  title: 'Manual rolls', request: 'Request roll', retry: 'Retry', empty: 'Manual roll',
+  pending: 'Pending', resolved: 'Resolved', cancelled: 'Cancelled', rollFor: 'Roll for',
+  gmOverride: 'GM override', requestNotice: 'The GM requested a roll from you. Confirm it to submit the result.',
+  cancel: 'Cancel request', pendingRoll: 'Pending roll', dialog: 'Request a manual roll',
+  label: 'Label', labelPlaceholder: 'e.g. Perception', formula: 'Dice formula',
+  visibility: 'Visibility', party: 'Party', private: 'Targets only', targets: 'Targets',
+  later: 'Later', send: 'Send request', sending: 'Sending…', roll: 'Roll',
+  rolling: 'Rolling…', chooseTarget: 'Select at least one target.',
+})
+const viewerIsGm = computed(() => props.isGm && !props.preview)
+const rolls = useManualRolls(toRef(props, 'gameKey'), toRef(props, 'runId'), toRef(props, 'actorId'), viewerIsGm, toRef(props, 'lastActivity'))
+const visibleRequests = rolls.visibleRequests
+const activeRequest = rolls.activeRequest
+const composerOpen = ref(false), formula = ref('d20'), label = ref(''), visibility = ref<ManualRollVisibility>('party'), targetUids = ref<string[]>([])
+const busy = ref(false), submitError = ref(''), draftOperationId = ref('')
+const canCreate = computed(() => viewerIsGm.value)
+const canAct = computed(() => !props.preview || Boolean(props.delegate))
+const reopenable = computed(() => rolls.pendingForActor.value.filter(item => !rolls.activeRequest.value || item.id !== rolls.activeRequest.value.id))
+
+function resetComposer() { formula.value = 'd20'; label.value = ''; visibility.value = 'party'; targetUids.value = props.players.map(player => player.user_id); submitError.value = ''; draftOperationId.value = '' }
+function openComposer() { resetComposer(); composerOpen.value = true }
+function toggleTarget(uid: string) { targetUids.value = targetUids.value.includes(uid) ? targetUids.value.filter(item => item !== uid) : [...targetUids.value, uid] }
+async function create() {
+  if (!targetUids.value.length) { submitError.value = copy.value.chooseTarget; return }
+  busy.value = true; submitError.value = ''
+  try { draftOperationId.value = await rolls.create({ formula: formula.value, label: label.value, target_uids: targetUids.value, visibility: visibility.value, operation_id: draftOperationId.value || undefined }); composerOpen.value = false; draftOperationId.value = '' }
+  catch (error: unknown) { submitError.value = error instanceof Error ? error.message : String(error) }
+  finally { busy.value = false }
+}
+async function resolve(request: ManualRollRequest, targetUid = props.actorId) { busy.value = true; try { await rolls.roll(request, targetUid) } catch (error: unknown) { submitError.value = error instanceof Error ? error.message : String(error) } finally { busy.value = false } }
+async function cancel(request: ManualRollRequest) { busy.value = true; try { await rolls.cancel(request) } catch (error: unknown) { submitError.value = error instanceof Error ? error.message : String(error) } finally { busy.value = false } }
+function resultText(request: ManualRollRequest) { return Object.entries(request.results).map(([uid, result]) => `${request.target_names[uid] || uid}: ${result.total}`).join(' · ') }
+function statusText(status: ManualRollRequest['status']) { return copy.value[status] }
+</script>
+
+<template>
+  <section v-if="canCreate || visibleRequests.length" class="manual-rolls panel" data-testid="manual-rolls">
+    <div class="manual-rolls-header"><div><small>GM</small><h3>{{ copy.title }}</h3></div><button v-if="canCreate" type="button" class="primary" @click="openComposer">{{ copy.request }}</button></div>
+    <p v-if="rolls.error" class="manual-roll-error">{{ rolls.error }} <button type="button" @click="rolls.refresh">{{ copy.retry }}</button></p>
+    <div v-if="viewerIsGm" class="manual-roll-list">
+      <article v-for="request in visibleRequests" :key="request.id" class="manual-roll-card">
+        <strong>{{ request.label || copy.empty }} · {{ request.formula }}</strong>
+        <span>{{ statusText(request.status) }} · {{ request.target_uids.map(uid => request.target_names[uid] || uid).join(', ') }}</span>
+        <p v-if="resultText(request)">{{ resultText(request) }}</p>
+        <div v-if="request.status === 'pending'" class="manual-roll-actions">
+          <button v-for="uid in request.target_uids" :key="uid" type="button" :disabled="busy || preview || Boolean(request.results[uid])" @click="resolve(request, uid)">{{ copy.gmOverride }} · {{ request.target_names[uid] || uid }}</button>
+          <button type="button" class="danger-quiet" :disabled="busy || preview" @click="cancel(request)">{{ copy.cancel }}</button>
+        </div>
+      </article>
+    </div>
+    <button v-for="request in reopenable" :key="`reopen-${request.id}`" type="button" class="manual-roll-badge" @click="rolls.reopen(request.id)">{{ copy.pendingRoll }}：{{ request.label || request.formula }}</button>
+  </section>
+
+  <Modal v-if="composerOpen" :title="copy.dialog" @close="composerOpen = false">
+    <label>{{ copy.label }} <input v-model="label" maxlength="200" :placeholder="copy.labelPlaceholder" /></label>
+    <label>{{ copy.formula }} <input v-model="formula" placeholder="d20 + 2" /></label>
+    <label>{{ copy.visibility }} <select v-model="visibility"><option value="party">{{ copy.party }}</option><option value="private">{{ copy.private }}</option></select></label>
+    <fieldset><legend>{{ copy.targets }}</legend><label v-for="player in players" :key="player.user_id"><input type="checkbox" :checked="targetUids.includes(player.user_id)" @change="toggleTarget(player.user_id)" /> {{ player.character_name || player.user_id }}</label></fieldset>
+    <p v-if="submitError" class="muted">{{ submitError }}</p>
+    <template #actions><button :disabled="busy" @click="composerOpen = false">{{ copy.later }}</button><button class="primary" :disabled="busy" @click="create">{{ busy ? copy.sending : copy.send }}</button></template>
+  </Modal>
+
+  <Modal v-if="activeRequest && !viewerIsGm" :title="activeRequest.label || copy.title" @close="rolls.dismiss(activeRequest.id)">
+    <p class="manual-roll-notice" role="status" aria-live="assertive">{{ copy.requestNotice }}</p>
+    <p>{{ copy.roll }} {{ activeRequest.formula }}</p>
+    <p v-if="submitError" class="muted">{{ submitError }}</p>
+    <template #actions><button @click="rolls.dismiss(activeRequest.id)">{{ copy.later }}</button><button class="primary" :disabled="busy || !canAct" @click="resolve(activeRequest)">{{ busy ? copy.rolling : copy.roll }}</button></template>
+  </Modal>
+</template>
+
+<style scoped>
+.manual-rolls{display:grid;gap:10px;padding:12px;border-color:rgb(190 151 74 / 38%);background:linear-gradient(145deg,rgb(31 39 46 / 96%),rgb(18 27 34 / 98%));box-shadow:inset 0 1px rgb(255 255 255 / 4%)}.manual-rolls-header{display:flex;gap:10px;align-items:center;justify-content:space-between}.manual-rolls-header>div{display:flex;align-items:center;gap:8px;min-width:0}.manual-rolls-header small{display:grid;place-items:center;width:26px;height:26px;border:1px solid #b99a5a;border-radius:50%;color:#e5c87f;font-size:10px;font-weight:800}.manual-rolls-header h3{margin:0;color:#efe2bd;font-size:14px;white-space:nowrap}.manual-rolls button{min-height:34px;white-space:nowrap}.manual-rolls-header .primary{padding:6px 10px;border-color:#63bbb8;background:linear-gradient(180deg,#204c55,#173740);color:#dcffff}.manual-roll-list{display:grid;gap:8px}.manual-roll-card{display:grid;gap:5px;padding:9px 10px;border:1px solid rgb(190 151 74 / 28%);border-radius:9px;background:rgb(10 18 25 / 38%)}.manual-roll-card>span{color:var(--df-text-muted);font-size:12px}.manual-roll-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.manual-roll-actions button{flex:1 1 auto;padding:5px 8px}.danger-quiet{color:#f0a1a1}.manual-roll-badge{width:100%;text-align:left}.manual-roll-error{display:grid;gap:7px;margin:0;color:#e7b5a4;font-size:12px}.manual-roll-error button{justify-self:start}label,fieldset{display:grid;gap:.35rem;margin:.45rem 0}input,select{max-width:100%}
+</style>

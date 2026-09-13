@@ -119,6 +119,7 @@ def game_detail(
     dependencies: GameQueryDependencies,
     game_key: str,
     viewer_uid: str = "",
+    viewer_is_gm: bool = False,
 ) -> dict[str, Any] | None:
     instance = dependencies.get_instance(dependencies.parse_game_key(game_key))
     if not instance:
@@ -192,7 +193,7 @@ def game_detail(
         # custom_instructions 可能包含剧透级 GM 笔记：gm_style_override 只下发给 GM。
         "gm_style_override": (
             getattr(instance, "gm_style_override", None)
-            if viewer_uid and viewer_uid == (instance.gm_uid or "")
+            if viewer_is_gm or (viewer_uid and viewer_uid == (instance.gm_uid or ""))
             else None
         ),
         "max_players": instance.max_players,
@@ -206,6 +207,7 @@ def game_detail(
         "adventure_binding": dict(
             getattr(instance, "adventure_binding", {}) or {}
         ),
+        "play_mode": str(getattr(instance, "play_mode", "free") or "free"),
     }
     if getattr(instance, "ruleset_runtime", None):
         binding = dict(instance.ruleset_runtime)

@@ -86,8 +86,8 @@ function setGmStyleField(field: 'tone' | 'verbosity' | 'pace', value: string) {
   gmStyleDraft[field] = value
   saveGmStyle()
 }
-function toggleGmStyleFollowWorld(event: Event) {
-  if ((event.target as HTMLInputElement).checked) {
+function setGmStyleSource(followWorld: boolean) {
+  if (followWorld) {
     emit('gm-style', { gm_style: null })
     return
   }
@@ -155,7 +155,7 @@ function awardXp(userId: string) {
         <button @click="emit('world-switch')"><NIcon :component="BookOutline" size="14" /> {{ t('switchLorebook') }}</button>
       </div>
     </details>
-    <details class="perc gm-perc gm-console-section"><summary>{{ t('mode') }}</summary>
+    <details class="perc gm-perc gm-console-section" open><summary>{{ t('narrativePerspective') }} · {{ t('gmStyleTitle') }}</summary>
       <div class="gm-console-section-actions">
         <button @click="emit('mode')"><NIcon :component="PeopleOutline" size="14" /> {{ t('switchToMode', { mode: detail.solo_mode ? t('multiplayer') : t('solo') }) }}</button>
         <label class="gm-narrative-setting">
@@ -167,14 +167,14 @@ function awardXp(userId: string) {
           </select>
           <small>{{ t('narrativeChangeHint') }}</small>
         </label>
-        <label class="gm-narrative-setting">
+        <div class="gm-narrative-setting">
           <span>{{ t('gmStyleTitle') }}</span>
-          <label class="gm-style-follow">
-            <input type="checkbox" :checked="gmStyleFollowWorld" @change="toggleGmStyleFollowWorld">
-            <span>{{ t('gmStyleFollowWorld') }}</span>
-          </label>
+          <div class="gm-style-source-options">
+            <button type="button" :class="{ active: gmStyleFollowWorld }" @click="setGmStyleSource(true)">{{ t('gmStyleFollowWorld') }}</button>
+            <button type="button" :class="{ active: !gmStyleFollowWorld }" @click="setGmStyleSource(false)">{{ t('gmStyleOverrideCurrent') }}</button>
+          </div>
           <small>{{ t('gmStyleHint') }}</small>
-        </label>
+        </div>
         <template v-if="!gmStyleFollowWorld">
           <label class="gm-narrative-setting">
             <span>{{ t('gmStyleTone') }}</span>

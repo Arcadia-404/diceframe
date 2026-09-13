@@ -249,6 +249,7 @@ export const zhCN = {
   narrativeChangeHint: '下一次 AI GM 回复起生效，不改写已有记录。',
   gmStyleTitle: 'GM 叙事风格',
   gmStyleFollowWorld: '跟随世界设定',
+  gmStyleOverrideCurrent: '本局自定义',
   gmStyleTone: '文风',
   gmStyleToneDefault: '默认',
   gmStyleToneLiterary: '文学',
