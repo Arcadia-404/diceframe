@@ -16,7 +16,7 @@ const copy = computed(() => zh.value ? {
   pending: '等待投掷', resolved: '已完成', cancelled: '已取消', rollFor: '代投',
   gmOverride: 'GM 代投', requestNotice: 'GM 请求你进行一次投掷，请确认后提交结果。',
   cancel: '取消请求', pendingRoll: '待投掷', dialog: '发起手动投掷', label: '说明',
-  labelPlaceholder: '例如：察觉检定', formula: '骰子公式', visibility: '可见范围',
+  labelPlaceholder: '例如：察觉检定', formula: '骰子公式', formulaHint: '例如 d20、d20+2、2d6+1；这里只记录骰值，不自动判定成功或失败。', visibility: '可见范围',
   party: '全队可见', private: '仅目标可见', targets: '投掷角色', later: '稍后',
   send: '发送请求', sending: '发送中…', roll: '投掷', rolling: '投掷中…',
   chooseTarget: '请至少选择一名投掷角色。',
@@ -25,7 +25,7 @@ const copy = computed(() => zh.value ? {
   pending: 'Pending', resolved: 'Resolved', cancelled: 'Cancelled', rollFor: 'Roll for',
   gmOverride: 'GM override', requestNotice: 'The GM requested a roll from you. Confirm it to submit the result.',
   cancel: 'Cancel request', pendingRoll: 'Pending roll', dialog: 'Request a manual roll',
-  label: 'Label', labelPlaceholder: 'e.g. Perception', formula: 'Dice formula',
+  label: 'Label', labelPlaceholder: 'e.g. Perception', formula: 'Dice formula', formulaHint: 'Examples: d20, d20+2, 2d6+1. This records the roll only; it does not judge success or failure.',
   visibility: 'Visibility', party: 'Party', private: 'Targets only', targets: 'Targets',
   later: 'Later', send: 'Send request', sending: 'Sending…', roll: 'Roll',
   rolling: 'Rolling…', chooseTarget: 'Select at least one target.',
@@ -59,7 +59,6 @@ function statusText(status: ManualRollRequest['status']) { return copy.value[sta
 <template>
   <section v-if="canCreate || visibleRequests.length" class="manual-rolls panel" data-testid="manual-rolls">
     <div class="manual-rolls-header"><div><small>GM</small><h3>{{ copy.title }}</h3></div><button v-if="canCreate" type="button" class="primary" @click="openComposer">{{ copy.request }}</button></div>
-    <p v-if="rolls.error" class="manual-roll-error"><span>{{ rolls.error }}</span><button type="button" @click="rolls.refresh">{{ copy.retry }}</button></p>
     <div v-if="viewerIsGm" class="manual-roll-list">
       <article v-for="request in visibleRequests" :key="request.id" class="manual-roll-card">
         <strong>{{ request.label || copy.empty }} · {{ request.formula }}</strong>
@@ -76,7 +75,7 @@ function statusText(status: ManualRollRequest['status']) { return copy.value[sta
 
   <Modal v-if="composerOpen" :title="copy.dialog" @close="composerOpen = false">
     <label>{{ copy.label }} <input v-model="label" maxlength="200" :placeholder="copy.labelPlaceholder" /></label>
-    <label>{{ copy.formula }} <input v-model="formula" placeholder="d20 + 2" /></label>
+    <label>{{ copy.formula }} <input v-model="formula" placeholder="d20 + 2" /><small class="manual-roll-field-hint">{{ copy.formulaHint }}</small></label>
     <label>{{ copy.visibility }} <select v-model="visibility"><option value="party">{{ copy.party }}</option><option value="private">{{ copy.private }}</option></select></label>
     <fieldset class="manual-roll-targets"><legend>{{ copy.targets }}</legend><label v-for="player in players" :key="player.user_id" class="form-check"><input type="checkbox" :checked="targetUids.includes(player.user_id)" @change="toggleTarget(player.user_id)" /> <span>{{ player.character_name || player.user_id }}</span></label></fieldset>
     <p v-if="submitError" class="muted">{{ submitError }}</p>
@@ -220,6 +219,14 @@ function statusText(status: ManualRollRequest['status']) { return copy.value[sta
 .manual-rolls input,
 .manual-rolls select {
   max-width: 100%;
+}
+
+.manual-roll-field-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--df-text-muted);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .manual-roll-targets {

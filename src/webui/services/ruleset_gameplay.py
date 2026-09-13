@@ -232,13 +232,17 @@ async def plan_temporary_encounter(
         request = view.get("encounter_request") if isinstance(view, dict) else None
         if isinstance(combat, dict) and combat.get("status") == "active":
             return _error("COMBAT_ACTIVE", "战斗进行中，无法生成临时遭遇")
-        if (
-            not isinstance(request, dict)
-            or str(request.get("status") or "") != "pending"
-        ):
+        request_pending = (
+            isinstance(request, dict)
+            and str(request.get("status") or "") == "pending"
+        )
+        # 标准自由对局没有叙事层 encounter_request；GM 从战斗工具
+        # 明确点击 AI 生成时，sandbox capability 本身就是授权条件。
+        # 活动冒险的未准备状态仍必须有待处理敌情，不能静默绕过剧情门槛。
+        if not request_pending and str((access or {}).get("mode") or "") != "sandbox":
             return _error(
                 "NO_PENDING_ENCOUNTER",
-                "当前没有待准备的敌情，不能生成临时遭遇",
+                "当前没有可生成临时遭遇的敌情",
             )
         if not isinstance(access, dict) or str(access.get("mode") or "") == "story":
             # 正式剧情遭遇永远优先：有绑定 preset 时绝不能用临时生成绕过。
@@ -246,7 +250,7 @@ async def plan_temporary_encounter(
                 "STORY_ENCOUNTER_BOUND",
                 "当前剧情已绑定正式遭遇，不能覆盖为临时遭遇",
             )
-        requested_preset_id = str(request.get("encounter_preset_id") or "")
+        requested_preset_id = str(request.get("encounter_preset_id") or "") if request_pending else ""
         available_preset_ids = {
             str(item.get("id") or "")
             for item in (view.get("encounter_presets") or [])

@@ -23,6 +23,7 @@ from src.rulesets.dnd2024.director.temporary_encounter import (
     TEMPORARY_ENCOUNTER_TOOL_NAME,
     normalize_temporary_encounter,
     plan_temporary_encounter,
+    validate_temporary_encounter_balance,
 )
 from src.rulesets.dnd2024.runtime import Dnd2024Runtime
 from src.rulesets.legacy_adapter import LegacyRulesetAdapter
@@ -207,6 +208,18 @@ def test_normalize_rejects_out_of_range_and_non_dice_damage() -> None:
     )
 
 
+def test_balance_rejects_legal_but_deadly_attack_values() -> None:
+    runtime, instance = _runtime_instance()
+    proposal = normalize_temporary_encounter({
+        "title": "过强敌人", "description": "", "enemies": [{
+            "name": "过强敌人", "hp": 10, "armor_class": 14,
+            "attacks": [{"name": "重击", "attack_bonus": 12, "damage": "4d12+8"}],
+        }],
+    })
+    with pytest.raises(ValueError, match="普通难度上限"):
+        validate_temporary_encounter_balance(instance, proposal)
+
+
 @pytest.mark.asyncio
 async def test_plan_requires_tool_call_and_validates_output() -> None:
     instance = SimpleNamespace(
@@ -234,6 +247,11 @@ async def test_plan_requires_tool_call_and_validates_output() -> None:
 @pytest.mark.asyncio
 async def test_generation_context_reads_dnd2024_canonical_party_fields() -> None:
     runtime, instance = _runtime_instance()
+    instance.log.append({
+        "round": 1,
+        "actions": [{"user_id": "gm", "text": "检查矿井深处的抓挠声"}],
+        "gm_response": "黑暗里传来低沉的喘息。",
+    })
     llm = _FakeLLM(arguments=copy.deepcopy(_WOLF_RAW))
 
     await plan_temporary_encounter(instance, {}, llm)
@@ -252,6 +270,7 @@ async def test_generation_context_reads_dnd2024_canonical_party_fields() -> None
         "max_hp": canonical["resources"]["max_hp"],
         "armor_class": canonical["derived"]["armor_class"],
     }
+    assert context["recent_dialogue"][-1]["actions"][0]["text"] == "检查矿井深处的抓挠声"
 
 
 # ---- service：权限 / 覆盖拒绝 / 无副作用 / 失败 ----
@@ -301,7 +320,7 @@ async def test_player_cannot_plan_temporary_encounter() -> None:
 
 
 @pytest.mark.asyncio
-async def test_no_pending_encounter_rejects_without_calling_llm() -> None:
+async def test_free_play_can_plan_without_pending_encounter() -> None:
     runtime, instance = _runtime_instance()
     registry = _SaveRegistry()
     registry.items[tuple(instance.game_key)] = instance
@@ -312,9 +331,9 @@ async def test_no_pending_encounter_rejects_without_calling_llm() -> None:
         deps, "test|temp-encounter|bot", "gm", True,
     )
 
-    assert result["ok"] is False
-    assert result["code"] == "NO_PENDING_ENCOUNTER"
-    assert llm.calls == []
+    assert result["ok"] is True
+    assert result["encounter"]["title"] == "腐化狼群"
+    assert len(llm.calls) == 1
 
 
 @pytest.mark.asyncio

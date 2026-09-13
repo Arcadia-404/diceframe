@@ -208,6 +208,7 @@ def game_detail(
             getattr(instance, "adventure_binding", {}) or {}
         ),
         "play_mode": str(getattr(instance, "play_mode", "free") or "free"),
+        "manual_rolls": _public_manual_rolls(instance, viewer_uid),
     }
     if getattr(instance, "ruleset_runtime", None):
         binding = dict(instance.ruleset_runtime)
@@ -230,6 +231,49 @@ def game_detail(
         if isinstance(runtime, GameDetailProjectionRuntime):
             detail.update(runtime.game_detail_projection(instance))
     return detail
+
+
+def _public_manual_rolls(instance: Any, viewer_uid: str) -> list[dict[str, Any]]:
+    """Project resolved manual rolls for the shared timeline without exposing private rolls."""
+
+    viewer = str(viewer_uid or "")
+    gm_uid = str(getattr(instance, "gm_uid", "") or "")
+    projected: list[dict[str, Any]] = []
+    for request in getattr(instance, "manual_roll_requests", []) or []:
+        if not isinstance(request, dict) or not isinstance(request.get("results"), dict):
+            continue
+        target_uids = [str(uid) for uid in request.get("target_uids") or [] if str(uid)]
+        created_by = str(request.get("created_by") or "")
+        visibility = str(request.get("visibility") or "party")
+        if visibility == "private" and viewer not in {gm_uid, created_by, *target_uids}:
+            continue
+        results = {
+            str(uid): {
+                "total": result.get("total"),
+                "rolls": list(result.get("rolls") or []),
+                "modifier": result.get("modifier", 0),
+                "natural": result.get("natural"),
+            }
+            for uid, result in request["results"].items()
+            if str(uid) in target_uids and isinstance(result, dict)
+        }
+        if not results:
+            continue
+        projected.append({
+            "id": str(request.get("id") or ""),
+            "round_number": int(request.get("round_number", 0) or 0),
+            "label": str(request.get("label") or ""),
+            "formula": str(request.get("formula") or ""),
+            "status": str(request.get("status") or "pending"),
+            "target_names": {
+                uid: str((request.get("target_names") or {}).get(uid) or uid)
+                for uid in results
+            },
+            "results": results,
+            "created_at": str(request.get("created_at") or ""),
+        })
+    projected.sort(key=lambda item: (item["round_number"], item["created_at"], item["id"]))
+    return projected
 
 
 def clean_public_narration(text: str) -> str:

@@ -92,6 +92,7 @@ const copy = computed(() => locale.value.startsWith('zh') ? {
   aiPreparing: 'AI 正在生成临时遭遇…',
   aiFailed: '无法生成合法的临时遭遇。你仍可以手动选择自由遭遇。',
   aiPreviewTag: 'AI 生成的临时遭遇',
+  aiDifficulty: '难度：普通（已按当前队伍强度限制）',
   aiConfirmStart: '确认进入战斗',
   aiRegenerate: '重新生成',
   aiEncounterNote: '这场战斗不会写入冒险包的正式遭遇定义；战斗结束后仍可继续当前冒险剧情。',
@@ -140,6 +141,7 @@ const copy = computed(() => locale.value.startsWith('zh') ? {
   aiPreparing: 'The AI is preparing an encounter…',
   aiFailed: 'Could not generate a legal temporary encounter. You can still prepare a free encounter manually.',
   aiPreviewTag: 'AI temporary encounter',
+  aiDifficulty: 'Difficulty: Standard (bounded to the current party)',
   aiConfirmStart: 'Confirm and start combat',
   aiRegenerate: 'Regenerate',
   aiEncounterNote: 'This combat is not written into the adventure package; the story continues afterwards.',
@@ -801,10 +803,11 @@ onBeforeUnmount(() => { if (pollTimer) window.clearInterval(pollTimer) })
         </div>
 
         <p v-if="aiError && !aiProposal" class="combat-error" role="alert">{{ aiError }}</p>
-        <div v-if="isGm && aiProposal" class="guided-preset ai-encounter-preview">
+          <div v-if="isGm && aiProposal" class="guided-preset ai-encounter-preview">
           <span>{{ copy.aiPreviewTag }}</span>
-          <strong>{{ aiProposal.title }}</strong>
-          <p>{{ aiProposal.description }}</p>
+            <strong>{{ aiProposal.title }}</strong>
+            <p>{{ aiProposal.description }}</p>
+            <small class="encounter-source">{{ copy.aiDifficulty }}</small>
           <ul class="ai-encounter-enemies">
             <li v-for="enemy in aiProposal.enemies" :key="enemy.id">
               <header>

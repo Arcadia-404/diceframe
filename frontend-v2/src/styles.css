@@ -285,6 +285,7 @@ details:not([open])>:not(summary){display:none}
 .state-card-title{display:inline-flex;align-items:center;gap:4px;font-weight:700;color:var(--df-accent-strong);font-size:12px;white-space:nowrap}
 .state-card-title .n-icon{vertical-align:0}
 .state-card-body{flex:1 1 220px;min-width:0;color:var(--df-text)}
+.manual-roll-totals{display:flex;flex-wrap:wrap;gap:4px 14px}.manual-roll-result{font-weight:700;color:var(--df-text)}
 .chat-gm{white-space:pre-wrap;line-height:1.7;margin:8px 0}.chat-gm + .chat-gm{margin-top:10px}
 .tag-line{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}
 .log-action{padding:4px 0;border-bottom:1px solid var(--df-border-soft);font-size:13px;line-height:1.6}

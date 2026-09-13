@@ -1130,6 +1130,7 @@ onBeforeUnmount(() => {
           :reveal-checks="revealChecks"
           :current-user-id="actorId"
           :luck-busy-id="luckBusyId"
+          :manual-rolls="game.detail.value.manual_rolls"
           @refresh="game.refresh"
           @luck="onLuckDecision"
         />
