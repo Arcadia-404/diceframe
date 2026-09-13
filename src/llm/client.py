@@ -152,7 +152,7 @@ class LLMClient:
         user_message: str,
         *,
         tools: list[dict[str, Any]],
-        max_tokens: int = 512,
+        max_tokens: int = 4096,
         temperature: float = 0.1,
     ) -> LLMToolResponse:
         """调用模型工具；不支持原生 tools 的供应商自动回退严格 JSON。
@@ -410,7 +410,7 @@ class LLMClient:
         user_message: str,
         *,
         temperature: float = 0.7,
-        max_tokens: int = 1024,
+        max_tokens: int = 4096,
         force_provider: str | None = None,
         json_mode: bool = False,
     ) -> LLMResponse:
@@ -509,7 +509,7 @@ class LLMClient:
         user_message: str,
         *,
         temperature: float = 0.7,
-        max_tokens: int = 1024,
+        max_tokens: int = 4096,
         force_provider: str | None = None,
         json_mode: bool = False,
         on_delta=None,
