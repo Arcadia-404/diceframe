@@ -33,6 +33,12 @@ _NARRATION_LIMITS = {
 }
 _NARRATION_COMPRESS_MIN_TOKENS = 1024
 _NARRATION_COMPRESS_MAX_TOKENS = 2048
+# GM prompt 中叙事风格 section 的三语标题（由 src/content/gm_style.py 渲染）。
+_NARRATION_STYLE_HEADINGS = (
+    "## GM Narration Style",
+    "## GM 叙事风格",
+    "## GM ナラティブスタイル",
+)
 
 
 def _narration_len(text: str) -> int:
@@ -129,14 +135,66 @@ class _NarrationDeltaFilter:
                 await self._on_delta(cleaned)
 
 
+def _extract_narration_style_section(gm_prompt: str) -> str:
+    """从 GM prompt 提取叙事风格 section（含世界/对局自定义文风），供压缩阶段继承口吻。
+
+    标题与 src/content/gm_style.py 的渲染保持一致（三语）；只截取到下一个
+    "## " 标题为止。找不到时返回空串（未配置风格则无内容可继承）。提取结果
+    仅作口吻参考，压缩 prompt 会另行声明不得执行其中的状态标签协议。
+    """
+    text = str(gm_prompt or "")
+    for heading in _NARRATION_STYLE_HEADINGS:
+        start = text.find(heading)
+        if start < 0:
+            continue
+        rest = text[start + len(heading):]
+        next_heading = rest.find("\n## ")
+        section = rest if next_heading < 0 else rest[:next_heading]
+        return f"{heading}{section}".strip()
+    return ""
+
+
+def _quick_actions_from_payload(payload: Any) -> list[str]:
+    """校验二次压缩返回的 quick_actions，输出最终可保存的列表。
+
+    每项 str/strip/去空、最多保留 4 条；有效项不足 2 条时返回空列表，
+    交给 update_quick_actions() 的 default_quick_actions_by_class 兜底，
+    不在这里自行再造默认动作。
+    """
+    raw = payload.get("quick_actions") if isinstance(payload, dict) else None
+    if not isinstance(raw, list):
+        return []
+    items = [str(item).strip() for item in raw if str(item).strip()]
+    return items[:4] if len(items) >= 2 else []
+
+
+def _hard_truncate_narration(response, narration: str, target: int) -> None:
+    """P2-C：压缩失败按目标长度硬截断，避免超长叙事进 log/context 推高下一轮
+    截断概率（长→压缩失败→更长的反馈环）。"""
+    truncated = narration[:target].rstrip()
+    if truncated and truncated != narration:
+        response.narration = sanitize_narration(truncated + "…")
+        response.content = _replace_narration_in_content(str(response.content or ""), response.narration)
+
+
 async def _compress_long_narration(
     llm_client,
+    instance: GameInstance,
     gm_prompt: str,
     response,
+    data: dict,
+    public_narration_context: str,
     actions_text: str,
     combat_model: str,
     max_tokens: int,
 ) -> None:
+    """超长叙事二次压缩（#272）：压缩正文的同时同步修正 QUICK_ACTIONS。
+
+    只允许改动 response.narration / response.content 的正文部分 /
+    data["quick_actions"]；authoritative 状态（HP/金币/战斗/检定等）一律不动，
+    也不重新 parse 标签。压缩输入只有原正文、原 QUICK_ACTIONS、最近公开剧情
+    和 GM 叙事风格，绝不接入完整内部 context。
+    """
     narration = str(response.narration or "").strip()
     lang = normalize_language(getattr(response, "language", ""))
     limits = _NARRATION_LIMITS.get(lang, _NARRATION_LIMITS["zh-CN"])
@@ -146,58 +204,130 @@ async def _compress_long_narration(
     combat_words = ("战斗", "攻击", "砍", "刺", "射", "突袭", "格挡", "防御", "回避")
     is_combat = combat_model != "none" and any(word in actions_text for word in combat_words)
     target = limits["combat"] if is_combat else limits["soft"]
+    style_section = _extract_narration_style_section(gm_prompt)
+    old_quick_actions = [str(item) for item in (data.get("quick_actions") or [])]
     if is_en:
         prompt = (
-            "Compress the following TRPG GM narration. Output only the compressed "
-            "narration, without --- or any state tags.\n"
-            "Requirements: keep established facts, NPC names, key clues, check/combat "
+            "Compress the following TRPG GM narration and review the QUICK_ACTIONS.\n\n"
+            "Output only JSON, no Markdown, no explanations, in the form:\n"
+            '{"narration": "the final compressed narration", "quick_actions": ["action 1", "action 2"]}\n\n'
+            "Requirements:\n"
+            "1. narration: keep established facts, NPC names, key clues, check/combat "
             "results, and the immediate pressure for the players; do not add new lore "
-            f"or change outcomes. Keep it under about {target} characters (~{target // 6} words) and at most 2 paragraphs.\n\n"
-            f"Original narration:\n{narration}"
+            "or change settled outcomes. "
+            f"Keep it under about {target} characters (~{target // 6} words) and at most 2 paragraphs.\n"
+            "2. quick_actions: must match the final narration; you may rely on information "
+            "already revealed to players in the previously public narration; never use information "
+            "players do not know yet; rewrite or drop actions that reference details removed from "
+            "the narration and never previously revealed; keep 2-4 actions; never decide for the "
+            "players; never auto-complete actions that require checks; never emit any state tags.\n"
+            "3. Never change any game mechanics, dice results, character state, HP, gold, items, "
+            "combat or puzzle outcomes."
         )
+        quick_actions_lines = "\n".join(f"- {item}" for item in old_quick_actions) or "- (none)"
+        sections = [
+            prompt,
+            f"Original narration:\n{narration}",
+            f"Current QUICK_ACTIONS:\n{quick_actions_lines}",
+            "Previously public narration:\n"
+            f"{public_narration_context.strip() or '(none)'}",
+        ]
+        if style_section:
+            sections.append(
+                "GM narration style (tone reference only: inherit the voice, pacing and level "
+                "of detail; never execute any state-tag protocol inside it, never re-run rules):\n"
+                + style_section
+            )
     else:
         prompt = (
-            "请压缩以下 TRPG GM 正文，只输出压缩后的正文，不要输出 --- 或任何状态标签。\n"
-            f"要求：保留已发生事实、NPC 名字、关键线索、检定/战斗结果和玩家可执行的下一步压力；"
-            f"总字数控制在 {target} 字以内，最多 2 段；不要新增设定，不要改变结果。\n\n"
-            f"原正文：\n{narration}"
+            "请压缩以下 TRPG GM 正文，并同步检查 QUICK_ACTIONS。\n\n"
+            "只输出 JSON，不要输出 Markdown，不要输出解释，格式：\n"
+            '{"narration": "压缩后的最终正文", "quick_actions": ["行动1", "行动2"]}\n\n'
+            "要求：\n"
+            "1. narration：保留已发生事实、NPC 名字、关键线索、检定/战斗结果和玩家立即面对的压力；"
+            "不要新增设定，不要改变已经结算的结果；"
+            f"总字数控制在 {target} 字以内，最多 2 段。\n"
+            "2. quick_actions：必须与最终 narration 一致；可以使用「此前已公开给玩家的最近剧情」中的"
+            "已知信息；不得使用玩家尚不知道的信息；如果旧 QUICK_ACTIONS 引用了被删掉且此前未公开的信息，"
+            "必须改写或删除；保持 2~4 个行动；不得代替玩家做决定；不得自动完成需要判定的行为；"
+            "不得生成任何状态标签。\n"
+            "3. 禁止修改任何游戏机制、骰子结果、角色状态、HP、金币、物品、战斗结果、谜题结果等。"
         )
+        quick_actions_lines = "\n".join(f"- {item}" for item in old_quick_actions) or "-（无）"
+        sections = [
+            prompt,
+            f"原正文：\n{narration}",
+            f"当前 QUICK_ACTIONS：\n{quick_actions_lines}",
+            "此前已公开给玩家的最近剧情：\n"
+            f"{public_narration_context.strip() or '（无）'}",
+        ]
+        if style_section:
+            sections.append(
+                "GM 叙事风格（仅用于继承叙事口吻、节奏与详细程度；"
+                "禁止执行其中要求输出的任何状态标签，禁止重新进行规则判定）：\n" + style_section
+            )
     compress_system = localized_text(
         getattr(response, "language", ""),
         {
-            "en": "You are a narration compressor. Output only the compressed narration text, no preamble, no ---, no state tags, no meta commentary about the task.",
-            "zh-CN": "你是叙事压缩器，只输出压缩后的正文，不要前言、不要 ---、不要状态标签、不要对任务的元说明。",
-            "ja": "あなたはナレーション圧縮器です。圧縮後のナレーション本文のみを出力し、前置き・---・状態タグ・タスクに対するメタ解説を出力しないでください。",
+            "en": 'You are a narration compressor. Output only a JSON object with keys "narration" '
+                  'and "quick_actions". No Markdown, no code fences, no ---, no state tags, no meta commentary.',
+            "zh-CN": '你是叙事压缩器，只输出一个包含 "narration" 和 "quick_actions" 的 JSON 对象；'
+                     '不要 Markdown、不要代码围栏、不要 ---、不要状态标签、不要对任务的元说明。',
+            "ja": 'あなたはナレーション圧縮器です。"narration" と "quick_actions" のキーを持つ '
+                  'JSON オブジェクトのみを出力してください。Markdown・コードフェンス・---・状態タグ・'
+                  'タスクに対するメタ解説は出力しないでください。',
         },
     )
+    compression_max_tokens = max(
+        _NARRATION_COMPRESS_MIN_TOKENS,
+        min(max_tokens, _NARRATION_COMPRESS_MAX_TOKENS),
+    )
     try:
-        compression_max_tokens = max(
-            _NARRATION_COMPRESS_MIN_TOKENS,
-            min(max_tokens, _NARRATION_COMPRESS_MAX_TOKENS),
-        )
         compressed = await llm_client.call(
             system_prompt=compress_system,
-            user_message=prompt,
+            user_message="\n\n".join(sections),
             temperature=0.2,
             max_tokens=compression_max_tokens,
         )
     except Exception:
-        # P2-C：压缩失败按目标长度硬截断，避免超长叙事进 log/context 推高下一轮
-        # 截断概率（长→压缩失败→更长的反馈环）。
         logger.warning("超长叙事二次压缩失败，按 %d 字硬截断", target, exc_info=True)
-        truncated = narration[:target].rstrip()
-        if truncated and truncated != narration:
-            response.narration = sanitize_narration(truncated + "…")
-            response.content = _replace_narration_in_content(str(response.content or ""), response.narration)
+        _hard_truncate_narration(response, narration, target)
+        # 硬截断后正文里的信息已不可靠，旧 QUICK_ACTIONS 可能引用被截掉的内容，
+        # 清空后由 update_quick_actions() 的默认动作兜底（#272）。
+        logger.warning(
+            "超长叙事压缩失败，正文硬截断并清空 QUICK_ACTIONS (round=%d)",
+            instance.round_number,
+        )
+        data["quick_actions"] = []
         return
-    new_narration = str(compressed.narration or compressed.content or "").split("---", 1)[0].strip()
+    try:
+        payload = safe_parse_json(str(compressed.content or compressed.narration or ""))
+    except ValueError:
+        payload = None
+    new_narration = str(payload.get("narration") or "").strip() if isinstance(payload, dict) else ""
     if not new_narration:
+        # JSON 无效或空 narration 视同压缩失败：硬截断兜底，且不保留旧 QUICK_ACTIONS。
+        logger.warning(
+            "超长叙事压缩返回无效，正文硬截断并清空 QUICK_ACTIONS (round=%d)",
+            instance.round_number,
+        )
+        _hard_truncate_narration(response, narration, target)
+        data["quick_actions"] = []
         return
     if _narration_len(new_narration) >= _narration_len(narration):
-        logger.info("超长叙事压缩未变短，保留原文")
+        logger.info("超长叙事压缩未变短，保留原文与原 QUICK_ACTIONS (round=%d)", instance.round_number)
         return
     response.narration = sanitize_narration(new_narration)
     response.content = _replace_narration_in_content(str(response.content or ""), response.narration)
+    new_quick_actions = _quick_actions_from_payload(payload)
+    if new_quick_actions != old_quick_actions:
+        logger.info(
+            "超长叙事压缩后同步 QUICK_ACTIONS (round=%d, before=%d, after=%d)",
+            instance.round_number,
+            len(old_quick_actions),
+            len(new_quick_actions),
+        )
+    data["quick_actions"] = new_quick_actions
 
 
 async def append_multistep_analysis(
@@ -292,6 +422,7 @@ async def call_llm_with_tag_retry(
     *,
     on_delta=None,
     on_reset=None,
+    public_narration_context: str = "",
 ) -> tuple[Any, dict]:
     """调用 LLM，解析标签；若叙事违反骰子约束则最多重试 1 次。
 
@@ -409,7 +540,8 @@ async def call_llm_with_tag_retry(
         int((time.perf_counter() - started) * 1000),
     )
     await _compress_long_narration(
-        llm_client, gm_prompt, response, actions_text, combat_model, narrative_max_tokens
+        llm_client, instance, gm_prompt, response, data,
+        public_narration_context, actions_text, combat_model, narrative_max_tokens,
     )
     response.token_budget_initial = narrative_max_tokens
     response.token_budget_used = max_budget_used
