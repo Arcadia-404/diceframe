@@ -21,7 +21,13 @@ export function useManualRolls(gameKey: Ref<string>, runId: Ref<string>, actorId
   let revision = 0
   const visibleRequests = computed(() => requests.value.filter(item => isVisibleToActor(item, actorId.value, isGm.value)))
   const pendingForActor = computed(() => visibleRequests.value.filter(item => canRollRequest(item, actorId.value, isGm.value)))
-  const activeRequest = computed(() => pendingForActor.value.find(item => item.id === activeRequestId.value) || pendingForActor.value.find(item => !dismissed.value.has(item.id)) || null)
+  // GM 也可能同时扮演自己的角色（单人局或 GM 自建角色）。只有请求
+  // 的目标是当前 actor 时才弹玩家确认窗；GM 对其他玩家的请求仍留在
+  // 控台列表中，由目标玩家确认，避免 GM 页面替玩家自动掷骰。
+  const targetPending = computed(() => visibleRequests.value.filter(item => (
+    item.status === 'pending' && item.target_uids.includes(actorId.value)
+  )))
+  const activeRequest = computed(() => targetPending.value.find(item => item.id === activeRequestId.value) || targetPending.value.find(item => !dismissed.value.has(item.id)) || null)
 
   function reset() { requests.value = []; error.value = ''; dismissed.value = new Set(); activeRequestId.value = ''; revision++ }
   async function refresh() {

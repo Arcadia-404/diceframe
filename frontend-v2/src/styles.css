@@ -34,6 +34,10 @@ input,textarea,select{width:100%;background:var(--df-control-bg);color:var(--df-
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--df-accent);box-shadow:0 0 0 2px rgba(216,173,82,.18)}
 textarea{resize:vertical}
 label{display:grid;gap:5px;color:var(--df-text-muted);margin:10px 0;font-size:13px}
+label:has(> input[type=checkbox]),label:has(> input[type=radio]){display:flex;align-items:center;justify-content:flex-start;gap:8px}
+label:has(> input[type=checkbox])>input,label:has(> input[type=radio])>input{flex:0 0 auto;width:16px;height:16px;margin:0;accent-color:var(--df-accent-strong,#d99b45);cursor:pointer}
+.form-check{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;margin:0;color:var(--df-text-secondary);line-height:1.4;cursor:pointer}
+.form-check input[type=checkbox],.form-check input[type=radio]{flex:0 0 auto;width:16px;height:16px;margin:0;accent-color:var(--df-accent-strong,#d99b45);cursor:pointer}
 /* 布局结构 */
 .app-shell{min-height:100vh;display:flex;flex-direction:column}
 .brand-logo{display:inline-flex;align-items:center;gap:9px;min-width:0}

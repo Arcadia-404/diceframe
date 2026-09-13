@@ -247,7 +247,7 @@ export const en = {
   narrativeThirdPerson: 'Character names (third person)',
   narrativeThirdPersonHint: 'Uses character names to keep every player distinct in shared narration.',
   narrativeChangeHint: 'Applies from the next AI GM response and does not rewrite history.',
-  gmStyleTitle: 'GM Narration Style',
+  gmStyleTitle: 'Narrative & Style',
   gmStyleFollowWorld: 'Follow world settings',
   gmStyleOverrideCurrent: 'Customize this game',
   gmStyleTone: 'Tone',

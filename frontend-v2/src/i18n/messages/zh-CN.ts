@@ -247,7 +247,7 @@ export const zhCN = {
   narrativeThirdPerson: '角色名视角（第三人称）',
   narrativeThirdPersonHint: '用角色名区分每名玩家，更适合多人公共叙事。',
   narrativeChangeHint: '下一次 AI GM 回复起生效，不改写已有记录。',
-  gmStyleTitle: 'GM 叙事风格',
+  gmStyleTitle: '叙事视角与风格',
   gmStyleFollowWorld: '跟随世界设定',
   gmStyleOverrideCurrent: '本局自定义',
   gmStyleTone: '文风',

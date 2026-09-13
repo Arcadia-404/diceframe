@@ -208,9 +208,15 @@ const requestedCombatPreset = computed(() => {
 const canPlanTemporaryEncounter = computed(() => Boolean(
   props.isGm
   && combat.value?.status !== 'active'
-  && narrativeCombatPending.value
   && encounterMode.value !== 'story'
   && !requestedCombatPreset.value
+  && !aiProposal.value
+  // 冒险包未准备遭遇时，只有 AI 已发出交战请求才开放兜底；
+  // 标准自由对局则直接允许 GM 从战斗工具发起临时遭遇。
+  && (
+    narrativeCombatPending.value
+    || Boolean(action('combat.start') || sandboxDeclared.value)
+  )
 ))
 const attackAction = computed(() => action('attack'))
 const spellAction = computed(() => action('cast_spell'))

@@ -247,7 +247,7 @@ export const ja = {
   narrativeThirdPerson: 'キャラクター名視点（三人称）',
   narrativeThirdPersonHint: '公開叙事で各プレイヤーをキャラクター名によって明確に区別します。',
   narrativeChangeHint: '次の AI GM 応答から反映され、過去の記録は書き換えません。',
-  gmStyleTitle: 'GM ナラティブスタイル',
+  gmStyleTitle: '語りの視点とスタイル',
   gmStyleFollowWorld: '世界設定に従う',
   gmStyleOverrideCurrent: 'このゲームで設定',
   gmStyleTone: '文体',
