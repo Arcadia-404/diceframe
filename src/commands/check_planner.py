@@ -705,7 +705,7 @@ async def plan_round_checks(
         _prompt_text(instance.language),
         _planner_context(instance, rule),
         tools=[DICE_CHECKS_TOOL],
-        max_tokens=2048,
+        max_tokens=4096,
         temperature=0.1,
     )
     raw_checks: list[Any] = []
