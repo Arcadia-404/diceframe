@@ -528,6 +528,36 @@ class Dnd2024Runtime:
         if not result.get("ok"):
             raise ValueError(str(result.get("error") or "unable to join active combat"))
 
+    def on_character_revived(self, instance: Any, user_id: str) -> None:
+        """Synchronize generic revival with D&D canonical combat state."""
+
+        sheet = instance.get_character_sheet(str(user_id))
+        try:
+            hp = int(sheet.get("hp", 1) or 1)
+        except (TypeError, ValueError):
+            hp = 1
+        result = self._combat_engine(
+            instance, locale=str(getattr(instance, "language", "") or ""),
+        ).revive_player(instance, str(user_id), hp)
+        if not result.get("ok"):
+            raise ValueError(str(result.get("error") or "unable to revive character"))
+        if result.get("applied"):
+            updated = deepcopy(instance.get_character_sheet(str(user_id)))
+            revision = int(updated.get("ruleset_revision", 0) or 0) + 1
+            operation_log = updated.get("ruleset_operation_log")
+            operation_log = deepcopy(operation_log) if isinstance(operation_log, list) else []
+            operation_log.append({
+                "operation_id": str(
+                    (result.get("event_batch") or {}).get("batch_id") or ""
+                ),
+                "kind": "event_batch",
+                "intent_type": "character.revive",
+                "revision": revision,
+            })
+            updated["ruleset_revision"] = revision
+            updated["ruleset_operation_log"] = operation_log[-32:]
+            instance.set_character_sheet(str(user_id), updated)
+
     @staticmethod
     def memory_deltas_from_event_batch(
         batch: dict[str, Any], instance: Any,
@@ -679,6 +709,7 @@ class Dnd2024Runtime:
             "dnd2024.position.changed", "dnd2024.spell.cast",
             "check.resolved", "resource.changed", "condition.applied",
             "condition.removed", "dnd2024.death_save.resolved",
+            "dnd2024.character.revived",
         }
         allowed_fields = {
             "type", "kind", "actor_id", "target_id", "text", "natural", "modifier",

@@ -353,6 +353,7 @@ class WebAPI:
                 get_instance=self._reg.get,
                 save_instance=self._reg.save,
                 load_rule=self._load_rule_for_game,
+                load_runtime=self._load_runtime_for_game,
                 generate_recap=(
                     self._handler.generate_story_recap
                     if self._handler is not None
@@ -1101,6 +1102,10 @@ class WebAPI:
             or "freeform_fantasy"
         )
         return self._load_rule_by_id(rule_id, language)
+
+    def _load_runtime_for_game(self, inst):
+        rule = self._load_rule_for_game(inst)
+        return self._ruleset_registry.resolve(rule.template) if rule else None
 
     def _project_game_rule_id(self, instance) -> str:
         return game_queries.projected_rule_id(

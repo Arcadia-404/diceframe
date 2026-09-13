@@ -60,6 +60,21 @@ class CombatReducerMixin:
             combat.setdefault("positions", {})[actor_id] = int(event.get("position", 0) or 0)
             combat.setdefault("reactions", {})[actor_id] = 1
             return
+        if event_type == "dnd2024.character.revived":
+            kind, raw_id = _actor_kind(str(event["actor_id"]))
+            if kind != "player" or raw_id not in snapshot["characters"]:
+                raise EventBatchError("revived actor must be an existing player")
+            character = snapshot["characters"][raw_id]
+            resources = character.setdefault("resources", {})
+            max_hp = int(resources.get("max_hp", 0) or 0)
+            hp = max(1, int(event.get("hp", 1) or 1))
+            if max_hp > 0:
+                hp = min(max_hp, hp)
+            resources["hp"] = hp
+            conditions = character.setdefault("conditions", {})
+            for condition in ("dead", "unconscious", "stable", "death_saves"):
+                conditions.pop(condition, None)
+            return
         if event_type == "dnd2024.combat.started":
             state["combat"] = {
                 "status": "active", "round": event["round"], "turn_index": 0,

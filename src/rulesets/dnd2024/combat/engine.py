@@ -455,6 +455,47 @@ class Dnd2024CombatEngine(
         result["changed"] = bool(result.get("applied"))
         return result
 
+    def revive_player(self, instance: Any, user_id: str, hp: int) -> dict[str, Any]:
+        """Apply a ruleset-owned revival to canonical character state.
+
+        Revival is versioned even when combat is not active so any previously
+        issued combat action cannot race the newly conscious character state.
+        """
+
+        state = self.initialize_state(instance)
+        if str(user_id) not in instance.players:
+            return {"ok": False, "error": "player does not exist"}
+        actor_id = _player_actor(str(user_id))
+        expected_version = int(state.get("version", 0) or 0)
+        intent = {
+            "intent_id": f"player-revive:{expected_version}:{user_id}",
+            "type": "character.revive",
+            "expected_version": expected_version,
+            "user_id": str(user_id),
+        }
+        batch = {
+            "batch_id": stable_batch_id(intent, expected_version),
+            "intent_id": intent["intent_id"],
+            "intent_type": intent["type"],
+            "expected_version": expected_version,
+            "result_version": expected_version + 1,
+            "events": [
+                {
+                    "type": "intent.submitted",
+                    "intent_type": intent["type"],
+                    "actor_id": actor_id,
+                    "submitted_by": str(user_id),
+                },
+                {
+                    "type": "dnd2024.character.revived",
+                    "actor_id": actor_id,
+                    "hp": int(hp),
+                },
+            ],
+            "source_ref": "srd-5.2.1:p24-p27:playing-the-game",
+        }
+        return self.apply_batch(instance, batch)
+
     def apply_batch(self, instance: Any, batch: dict[str, Any]) -> dict[str, Any]:
         state = self.initialize_state(instance)
         snapshot = {
