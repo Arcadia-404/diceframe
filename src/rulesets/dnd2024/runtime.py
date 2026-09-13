@@ -519,6 +519,15 @@ class Dnd2024Runtime:
         locale = str(getattr(instance, "language", "") or "")
         return self._combat_engine(instance, locale=locale).next_automatic_intent(instance)
 
+    def on_player_join(self, instance: Any, user_id: str) -> None:
+        """Enroll a late-joining character in an already active encounter."""
+
+        result = self._combat_engine(
+            instance, locale=str(getattr(instance, "language", "") or ""),
+        ).add_player_to_active_combat(instance, user_id)
+        if not result.get("ok"):
+            raise ValueError(str(result.get("error") or "unable to join active combat"))
+
     @staticmethod
     def memory_deltas_from_event_batch(
         batch: dict[str, Any], instance: Any,

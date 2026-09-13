@@ -37,6 +37,29 @@ class CombatReducerMixin:
                 ready_ids.discard(player_id)
             request["ready_player_ids"] = sorted(ready_ids)
             return
+        if event_type == "dnd2024.combat.player_joined":
+            actor_id = str(event["actor_id"])
+            if not actor_id.startswith("player:"):
+                raise EventBatchError("joined combat actor must be a player")
+            if actor_id in combat.get("initiative", []):
+                raise EventBatchError("player is already in combat initiative")
+            raw_id = actor_id.removeprefix("player:")
+            if raw_id not in snapshot["characters"]:
+                raise EventBatchError("joined combat player does not exist")
+            order = combat.setdefault("initiative", [])
+            insert_index = max(0, min(len(order), int(event.get("insert_index", len(order)))))
+            order.insert(insert_index, actor_id)
+            combat.setdefault("initiative_rolls", []).append({
+                "actor_id": actor_id,
+                "roll": int(event.get("roll", 0) or 0),
+                "modifier": int(event.get("modifier", 0) or 0),
+                "total": int(event.get("total", 0) or 0),
+                "kind": "player",
+                "joined_late": True,
+            })
+            combat.setdefault("positions", {})[actor_id] = int(event.get("position", 0) or 0)
+            combat.setdefault("reactions", {})[actor_id] = 1
+            return
         if event_type == "dnd2024.combat.started":
             state["combat"] = {
                 "status": "active", "round": event["round"], "turn_index": 0,

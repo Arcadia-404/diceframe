@@ -109,6 +109,38 @@ def test_catalog_preset_replaces_client_enemy_payload() -> None:
     assert started["enemies"]["goblin-warrior-1"]["hp"] == 10
 
 
+def test_player_joining_active_combat_is_added_to_next_turn() -> None:
+    engine, instance = _instance()
+    _start(engine, instance)
+    runtime = Dnd2024Runtime()
+    late = _character(runtime, "stalwart_guardian", "Latecomer")
+    instance.players["late"] = {
+        "character_name": "Latecomer",
+        "character_sheet": late,
+    }
+
+    runtime.on_player_join(instance, "late")
+    combat = instance.ruleset_state["combat"]
+    assert combat["initiative"][combat["turn_index"] + 1] == "player:late"
+    assert combat["reactions"]["player:late"] == 1
+    assert combat["positions"]["player:late"] == 0
+    ended = engine.resolve_intent(
+        instance,
+        {
+            "intent_id": "end-gm-after-join",
+            "type": "end_turn",
+            "expected_version": instance.ruleset_state["version"],
+            "submitted_by": "gm",
+            "actor_id": "player:gm",
+        },
+        SequenceRng([]),
+    )
+    assert ended["ok"] is True
+    engine.apply_batch(instance, ended["event_batch"])
+    actions = engine.available_intents(instance, "late")
+    assert any(action["type"] == "attack" for action in actions)
+
+
 def test_sandbox_hides_tutorial_presets_but_story_binding_can_use_them() -> None:
     runtime = Dnd2024Runtime()
     catalog = runtime.load_bundle("en").get(

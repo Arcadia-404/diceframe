@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
+from random import SystemRandom
 from typing import Any
 
 from src.rulesets.bundle import LoadedRulesetBundle
@@ -393,6 +394,66 @@ class Dnd2024CombatEngine(
             "source_ref": "srd-5.2.1:p24-p27:playing-the-game",
         }
         return {"ok": True, "event_batch": batch, "pending_decision": pending}
+
+    def add_player_to_active_combat(self, instance: Any, user_id: str) -> dict[str, Any]:
+        """Enroll a newly joined player after the current combat actor.
+
+        Membership changes happen outside the combat intent form, but still use
+        the same versioned event ledger so stale client intents cannot skip the
+        newly added actor.  The caller holds the instance state lock while this
+        method runs.
+        """
+
+        state = self.initialize_state(instance)
+        combat = state["combat"]
+        if combat.get("status") != "active":
+            return {"ok": True, "changed": False}
+        actor_id = _player_actor(str(user_id))
+        order = list(combat.get("initiative") or [])
+        if actor_id in order:
+            return {"ok": True, "changed": False}
+        if str(user_id) not in instance.players:
+            return {"ok": False, "error": "player does not exist"}
+        turn_index = int(combat.get("turn_index", 0) or 0)
+        insert_index = max(0, min(len(order), turn_index + 1))
+        canonical = _canonical(instance.get_character_sheet(str(user_id)))
+        modifier = int(canonical.get("derived", {}).get("initiative", 0) or 0)
+        roll = SystemRandom().randint(1, 20)
+        expected_version = int(state.get("version", 0) or 0)
+        intent = {
+            "intent_id": f"player-join:{expected_version}:{user_id}",
+            "type": "combat.player_joined",
+            "expected_version": expected_version,
+            "user_id": str(user_id),
+        }
+        batch = {
+            "batch_id": stable_batch_id(intent, intent["expected_version"]),
+            "intent_id": intent["intent_id"],
+            "intent_type": intent["type"],
+            "expected_version": intent["expected_version"],
+            "result_version": expected_version + 1,
+            "events": [
+                {
+                    "type": "intent.submitted",
+                    "intent_type": intent["type"],
+                    "actor_id": actor_id,
+                    "submitted_by": str(user_id),
+                },
+                {
+                    "type": "dnd2024.combat.player_joined",
+                    "actor_id": actor_id,
+                    "insert_index": insert_index,
+                    "roll": roll,
+                    "modifier": modifier,
+                    "total": roll + modifier,
+                    "position": 0,
+                },
+            ],
+            "source_ref": "srd-5.2.1:p24-p27:playing-the-game",
+        }
+        result = self.apply_batch(instance, batch)
+        result["changed"] = bool(result.get("applied"))
+        return result
 
     def apply_batch(self, instance: Any, batch: dict[str, Any]) -> dict[str, Any]:
         state = self.initialize_state(instance)
