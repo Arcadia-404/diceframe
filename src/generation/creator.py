@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from src.engine.character_utils import initial_special_stat_value, set_hp
@@ -769,6 +770,43 @@ def _master_template_for_prompt(template: dict, language: str) -> dict:
     return {k: v for k, v in template.items() if not k.endswith("_en")}
 
 
+_GENERATED_DE_TOP_LEVEL_FIELDS = (
+    "rule_name",
+    "description",
+    "attr_hint",
+    "skill_hint",
+    "gm_prompt_appendix",
+    "difficulty_instructions",
+    "currency",
+    "skill_pools",
+    "item_categories",
+)
+_GENERATED_DE_NESTED_COLLECTIONS = ("attributes", "classes", "special_stats")
+
+
+def _materialize_generated_de_fields(data: dict, language: str) -> None:
+    """德语 AI 生成规则的本地化字段物化（#277 followup）。
+
+    de 生成 prompt 把德语文本写在 canonical 字段（name/description 等），而
+    localized_field(..., "de") 在 name_de 缺失时会先命中 *_en，导致生成的德语
+    规则再次用于德语建卡/prompt 时显示英语。此处把德语文本复制进 *_de 字段
+    （仅缺省时，deepcopy 防共享引用），统一字段协议；不修改 localized_field
+    的全局回退顺序。非德语生成（en/zh/ja）直接原样返回，不添加 *_de 字段。
+    """
+    if normalize_language(language) != "de":
+        return
+    for key in _GENERATED_DE_TOP_LEVEL_FIELDS:
+        if key in data and f"{key}_de" not in data:
+            data[f"{key}_de"] = copy.deepcopy(data[key])
+    for collection in _GENERATED_DE_NESTED_COLLECTIONS:
+        for item in data.get(collection) or []:
+            if not isinstance(item, dict):
+                continue
+            for key in ("name", "description"):
+                if key in item and f"{key}_de" not in item:
+                    item[f"{key}_de"] = item[key]
+
+
 async def generate_rule(
     llm_client,
     prompt: str,
@@ -861,6 +899,7 @@ async def generate_rule(
     )
     if not data:
         return None
+    _materialize_generated_de_fields(data, language)
     data["rule_id"] = rule_id
     data["custom"] = True
     data["source_rule_id"] = source_rule_id
