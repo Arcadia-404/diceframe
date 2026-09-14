@@ -20,7 +20,7 @@ _APPEARANCE_KEYS = (
     "looks", "外貌", "外貌特征", "外观", "人物外貌",
 )
 _VISUAL_MARKERS = re.compile(
-    r"(?:外貌|外观|外形|头发|发色|眼睛|瞳|身高|体型|肤色|脸|面容|穿着|服装|衣着|裙|斗篷|铠|甲|盔|眼镜|义体|" 
+    r"(?:外貌|外观|外形|头发|发色|眼睛|瞳|身高|体型|肤色|脸|面容|穿着|服装|衣着|裙|斗篷|铠|甲|盔|眼镜|义体|"
     r"appearance|look(?:s)?|hair|eyes?|height|build|skin|face|wear(?:s|ing)?|clothing|outfit|glasses|prosthetic)",
     re.IGNORECASE,
 )

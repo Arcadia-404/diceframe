@@ -80,4 +80,3 @@ textarea { width: 100%; min-height: 150px; resize: vertical; }
 .avatar-reference-hint { margin: 2px 0 0; font-size: 0.85em; }
 .smart-storyboard-hint { margin: 10px 0 0; }
 </style>
-
