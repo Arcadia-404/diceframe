@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { NButton, NIcon, NInput, NInputNumber, NSwitch } from 'naive-ui'
+import { computed, ref } from 'vue'
+import { NButton, NIcon, NInput, NInputNumber, NPopover, NSwitch } from 'naive-ui'
 import { AlertCircleOutline, CheckmarkCircleOutline, CubeOutline, ImageOutline, MicOutline, ServerOutline, SparklesOutline, VolumeHighOutline } from '@vicons/ionicons5'
 import HelpButton from '@/components/common/HelpButton.vue'
 import TestResultCard from '@/components/admin/TestResultCard.vue'
@@ -29,6 +29,7 @@ const providers = computed(() => store.config.ai_providers || [])
 const openAiProviders = computed(() => providers.value.filter(provider => provider.api_format === 'openai'))
 const ttsProvider = computed(() => String(store.config.tts_provider || 'browser'))
 const asrProvider = computed(() => String(store.config.asr_provider || 'disabled'))
+const imageAdvancedOpen = ref(false)
 
 function eventValue(event: Event): string {
   return (event.target as HTMLSelectElement | null)?.value || ''
@@ -137,12 +138,25 @@ function setAsrProvider(value: string) {
             <header><NIcon :component="ImageOutline" /><div><h4>{{ t('modelRoleImagegen') }}</h4><p>{{ t('modelRoleImagegenHint') }}</p></div></header>
             <label class="model-role-enabled"><span>{{ t('enabled') }}</span><NSwitch :value="!!store.config.imagegen_enabled" :disabled="saving" @update:value="emit('toggle-and-save', 'imagegen_enabled', $event)" /></label>
             <label class="model-role-enabled"><span>{{ t('imagegenAutoScene') }}</span><NSwitch :value="!!store.config.imagegen_auto_scene" :disabled="saving || !store.config.imagegen_enabled" @update:value="emit('toggle-and-save', 'imagegen_auto_scene', $event)" /></label>
+            <label class="model-role-enabled"><span>{{ t('imagegenManualScene') }}</span><NSwitch :value="!!store.config.imagegen_manual_scene" :disabled="saving || !store.config.imagegen_enabled" @update:value="emit('toggle-and-save', 'imagegen_manual_scene', $event)" /></label>
             <label><span>{{ t('providerName') }}</span><select :value="store.config.imagegen_provider_ref || ''" :disabled="!store.config.imagegen_enabled" @change="setRoleProvider('imagegen_provider_ref', 'imagegen_model', eventValue($event), 'image')"><option value="">{{ t('modelRoutingChooseProvider') }}</option><option v-for="provider in openAiProviders" :key="provider.id" :value="provider.id">{{ provider.name || provider.id }}</option></select></label>
             <label><span>{{ t('model') }}</span><select :value="store.config.imagegen_model || ''" :disabled="!store.config.imagegen_enabled || !store.config.imagegen_provider_ref" @change="setString('imagegen_model', eventValue($event))"><option value="">{{ t('modelRoutingChooseModel') }}</option><option v-for="model in savedModels(String(store.config.imagegen_provider_ref || ''), 'image')" :key="model" :value="model">{{ model }}</option></select></label>
-            <label><span>{{ t('imagegenStylePrefix') }}</span><NInput :value="String(store.config.imagegen_style_prefix || '')" :disabled="!store.config.imagegen_enabled" @update:value="setString('imagegen_style_prefix', $event)" /></label>
-            <label><span>{{ t('imagegenSquareSize') }}</span><NInput :value="String(store.config.imagegen_square_size || '1024x1024')" :disabled="!store.config.imagegen_enabled" @update:value="setString('imagegen_square_size', $event)" /></label>
-            <label><span>{{ t('imagegenLandscapeSize') }}</span><NInput :value="String(store.config.imagegen_landscape_size || '1792x1024')" :disabled="!store.config.imagegen_enabled" @update:value="setString('imagegen_landscape_size', $event)" /></label>
-            <label><span>{{ t('imagegenTimeout') }}</span><NInputNumber :value="Number(store.config.imagegen_timeout_seconds || 120)" :min="5" :max="300" :disabled="!store.config.imagegen_enabled" @update:value="setNumber('imagegen_timeout_seconds', $event)" /></label>
+            <label class="imagegen-style-field"><span>{{ t('imagegenStylePrefix') }}</span><NPopover trigger="click" placement="top-start" :disabled="!store.config.imagegen_enabled">
+              <template #trigger><button type="button" class="imagegen-style-trigger" :disabled="!store.config.imagegen_enabled">{{ String(store.config.imagegen_style_prefix || '') || t('modelRoutingUnassigned') }}</button></template>
+              <NInput type="textarea" :value="String(store.config.imagegen_style_prefix || '')" :disabled="!store.config.imagegen_enabled" :placeholder="t('imagegenStylePrefix')" :autosize="{ minRows: 4, maxRows: 10 }" @update:value="setString('imagegen_style_prefix', $event)" />
+              <button type="button" class="advanced-toggle" @click="imageAdvancedOpen = !imageAdvancedOpen">{{ imageAdvancedOpen ? '−' : '+' }} {{ t('advancedSettings') }}</button>
+              <div v-if="imageAdvancedOpen" class="imagegen-advanced-fields">
+                <label class="model-role-enabled"><span>{{ t('imagegenAutoUseManualPrompt') }}</span><NSwitch :value="!!store.config.imagegen_auto_use_manual_prompt" :disabled="saving || !store.config.imagegen_enabled" @update:value="emit('toggle-and-save', 'imagegen_auto_use_manual_prompt', $event)" /></label>
+                <label><span>{{ t('imagegenManualRules') }}</span><NInput type="textarea" :value="String(store.config.imagegen_manual_rules || '')" :disabled="!store.config.imagegen_enabled" @update:value="setString('imagegen_manual_rules', $event)" /></label>
+                <label><span>{{ t('imagegenManualPrompt') }}</span><NInput type="textarea" :value="String(store.config.imagegen_manual_prompt || '')" :disabled="!store.config.imagegen_enabled" @update:value="setString('imagegen_manual_prompt', $event)" /></label>
+                <label><span>{{ t('imagegenAutoRules') }}</span><NInput type="textarea" :value="String(store.config.imagegen_auto_rules || '')" :disabled="!store.config.imagegen_enabled" @update:value="setString('imagegen_auto_rules', $event)" /></label>
+                <label><span>{{ t('imagegenAutoPrompt') }}</span><NInput type="textarea" :value="String(store.config.imagegen_auto_prompt || '')" :disabled="!store.config.imagegen_enabled" @update:value="setString('imagegen_auto_prompt', $event)" /></label>
+                <label><span>{{ t('imagegenSquareSize') }}</span><NInput :value="String(store.config.imagegen_square_size || '1024x1024')" :disabled="!store.config.imagegen_enabled" @update:value="setString('imagegen_square_size', $event)" /></label>
+                <label><span>{{ t('imagegenLandscapeSize') }}</span><NInput :value="String(store.config.imagegen_landscape_size || '1792x1024')" :disabled="!store.config.imagegen_enabled" @update:value="setString('imagegen_landscape_size', $event)" /></label>
+                <label><span>{{ t('imagegenQuality') }}</span><NInput :value="String(store.config.imagegen_quality || '')" :disabled="!store.config.imagegen_enabled" @update:value="setString('imagegen_quality', $event)" /></label>
+                <label><span>{{ t('imagegenTimeout') }}</span><NInputNumber :value="Number(store.config.imagegen_timeout_seconds || 120)" :min="5" :max="300" :disabled="!store.config.imagegen_enabled" @update:value="setNumber('imagegen_timeout_seconds', $event)" /></label>
+              </div>
+            </NPopover></label>
           </article>
           <article class="model-role-card">
             <header><NIcon :component="MicOutline" /><div><h4>{{ t('modelRoleAsr') }}</h4><p>{{ t('modelRoleAsrHint') }}</p></div></header>
@@ -154,3 +168,11 @@ function setAsrProvider(value: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.imagegen-style-field .n-popover__trigger { display: block; width: 100%; }
+.imagegen-style-trigger { width: 100%; min-height: 34px; padding: 7px 10px; text-align: left; border: 1px solid var(--df-border, rgba(255,255,255,.15)); border-radius: 6px; background: var(--df-bg-soft, rgba(0,0,0,.12)); color: inherit; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imagegen-style-trigger:disabled { cursor: not-allowed; opacity: .6; }
+.advanced-toggle { margin-top: 8px; }
+.imagegen-advanced-fields { display: grid; gap: 8px; margin-top: 8px; }
+</style>

@@ -101,7 +101,11 @@ async def test_schedule_scene_image_updates_log_and_generated_reference():
     assert request.owner_type == "game"
     assert request.owner_id == "web:room:test"
     assert request.aspect_ratio == "16:9"
-    assert request.context == {"round": 3, "run_id": registry.instance.run_id}
+    assert request.context["round"] == 3
+    assert request.context["run_id"] == registry.instance.run_id
+    assert request.context["scene"] == registry.instance.scene
+    assert "narration" in request.context
+    assert "panels" in request.context
     assert registry.saved == [registry.instance.game_key]
 
 

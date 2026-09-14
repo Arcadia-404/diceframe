@@ -642,7 +642,10 @@ class WebAPI:
             generated_images.GeneratedImageDependencies(
                 imagegen=imagegen_service,
                 get_instance=self.get_game_instance,
+                save_instance=self._reg.save,
                 update_map_background=self.update_map_background,
+                avatar_file=lambda asset_id: self.avatar_file(asset_id),
+                llm_client=self._llm_client,
             )
         )
         self._game_lifecycle = game_lifecycle.GameLifecycleService(
@@ -1738,6 +1741,14 @@ class WebAPI:
 
     async def generate_generated_image(self, **request: Any) -> dict[str, Any]:
         return await self._generated_images.generate_image(**request)
+
+    async def generate_current_round_image(
+        self, game_key: str, user_id: str, prompt: str, round_number: int,
+        panels: Any = None, use_avatar_references: bool = False,
+    ) -> dict[str, Any]:
+        return await self._generated_images.generate_current_round(
+            game_key, user_id, prompt, round_number, panels, use_avatar_references,
+        )
 
     def list_game_generated_images(
         self, game_key: str, user_id: str, *, purpose: str = "",

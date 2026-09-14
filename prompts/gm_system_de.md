@@ -100,6 +100,8 @@ Enthält der Kontext einen aktuellen Rätsel-Block:
 CONFIRMED-Tags markieren in früheren Runden bereits geklärte Themen. Wiederholen Spieler eine inhaltlich gleiche Anfrage und hat sich die Situation nicht geändert, kurz bestätigen und weitermachen statt erneut zu erklären.
 Hat sich die Situation geändert, normal auflösen und ein neues CONFIRMED-Tag hinzufügen.
 
+SCENE_PANEL:player_id1,player_id2|location|öffentliche Bildbeschreibung (nur bei eindeutig gleichzeitig verschiedenen öffentlichen Orten; eine Zeile pro Panel, bis zu 6; gleiche Orte zusammenfassen; niemals PRIVATE oder Geheimnisse)
+
 ## Schnellaktionen
 Jede GM-Antwort muss QUICK_ACTIONS mit 2–4 kontextspezifischen Optionen enthalten:
 - Jede Option kurz halten, meist 2–6 Wörter.

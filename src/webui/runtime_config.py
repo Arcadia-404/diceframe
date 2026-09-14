@@ -264,6 +264,12 @@ class ConfigStore:
             "asr_timeout_seconds": float(saved.get("asr_timeout_seconds", 60)),
             "imagegen_enabled": bool(saved.get("imagegen_enabled", False)),
             "imagegen_auto_scene": bool(saved.get("imagegen_auto_scene", True)),
+            "imagegen_manual_scene": bool(saved.get("imagegen_manual_scene", False)),
+            "imagegen_auto_use_manual_prompt": bool(saved.get("imagegen_auto_use_manual_prompt", False)),
+            "imagegen_manual_rules": str(saved.get("imagegen_manual_rules", "")),
+            "imagegen_manual_prompt": str(saved.get("imagegen_manual_prompt", "")),
+            "imagegen_auto_rules": str(saved.get("imagegen_auto_rules", "")),
+            "imagegen_auto_prompt": str(saved.get("imagegen_auto_prompt", "")),
             "imagegen_provider": str(
                 saved.get("imagegen_provider") or "openai-compatible"
             ),
