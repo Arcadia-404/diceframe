@@ -58,7 +58,7 @@ const selectedPreset = ref('')
 const spellSearch = ref('')
 let choiceSequence = 0
 
-const zh = computed(() => !String(props.language).toLowerCase().startsWith('en'))
+const zh = computed(() => String(props.language || '').toLowerCase().startsWith('zh'))
 const text = (cn: string, en: string) => zh.value ? cn : en
 
 function selectMode(value: BuilderMode): void {

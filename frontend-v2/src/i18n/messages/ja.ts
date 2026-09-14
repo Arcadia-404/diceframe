@@ -201,6 +201,7 @@ export const ja = {
   contentLanguage: 'コンテンツ言語',
   chinese: '簡体中文',
   english: 'English',
+  german: 'ドイツ語',
   createTitle: '新しい冒険を作成',
   recommendedRules: 'おすすめルール',
   recommended: 'おすすめ',

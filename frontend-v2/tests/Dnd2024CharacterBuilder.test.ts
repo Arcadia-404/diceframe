@@ -316,12 +316,12 @@ describe('D&D 2024 ability page: point buy vs background bonuses', () => {
     })
   })
 
-  async function reachAbilityStep(wrapper: VueWrapper) {
+  async function reachAbilityStep(wrapper: VueWrapper, { nameLabel = '角色名', nextLabel = '下一步', tabLabel = '引导创建' } = {}) {
     await wrapper.findAll('button').find(item => item.text().includes('可靠守护者'))!.trigger('click')
-    const nameInput = wrapper.findAll('label').find(item => item.text().includes('角色名'))!.find('input')
+    const nameInput = wrapper.findAll('label').find(item => item.text().includes(nameLabel))!.find('input')
     await nameInput.setValue('阿岚')
-    await wrapper.findAll('[role="tab"]').find(item => item.text() === '引导创建')!.trigger('click')
-    await buttonByText(wrapper, '下一步').trigger('click')
+    await wrapper.findAll('[role="tab"]').find(item => item.text() === tabLabel)!.trigger('click')
+    await buttonByText(wrapper, nextLabel).trigger('click')
     await wrapper.vm.$nextTick()
   }
 
@@ -420,5 +420,19 @@ describe('D&D 2024 ability page: point buy vs background bonuses', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.findAll('button').some(item => item.text().includes('使用职业推荐'))).toBe(false)
+  })
+
+  it('falls back to English (never Chinese) when language is de', async () => {
+    const wrapper = mountBuilder({ language: 'de' })
+    await flushPromises()
+    await reachAbilityStep(wrapper, { nameLabel: 'Character name', nextLabel: 'Next', tabLabel: 'Guided' })
+
+    const panel = wrapper.get('[role="tabpanel"]').text()
+    expect(panel).toContain('Base ability scores')
+    expect(panel).toContain('Background ability bonuses')
+    expect(panel).toContain('Class recommendation: prioritize Charisma')
+    expect(panel).not.toContain('基础属性分配')
+    expect(panel).not.toContain('背景属性提升')
+    expect(panel).not.toContain('职业推荐')
   })
 })

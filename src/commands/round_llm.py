@@ -30,14 +30,16 @@ logger = logging.getLogger("trpg")
 _NARRATION_LIMITS = {
     "zh-CN": {"trigger": 500, "soft": 260, "combat": 400},
     "en": {"trigger": 1200, "soft": 900, "combat": 1100},
+    "de": {"trigger": 1200, "soft": 900, "combat": 1100},
 }
 _NARRATION_COMPRESS_MIN_TOKENS = 1024
 _NARRATION_COMPRESS_MAX_TOKENS = 2048
-# GM prompt 中叙事风格 section 的三语标题（由 src/content/gm_style.py 渲染）。
+# GM prompt 中叙事风格 section 的多语言标题（由 src/content/gm_style.py 渲染）。
 _NARRATION_STYLE_HEADINGS = (
     "## GM Narration Style",
     "## GM 叙事风格",
     "## GM ナラティブスタイル",
+    "## GM-Erzählstil",
 )
 
 
@@ -199,6 +201,7 @@ async def _compress_long_narration(
     lang = normalize_language(getattr(response, "language", ""))
     limits = _NARRATION_LIMITS.get(lang, _NARRATION_LIMITS["zh-CN"])
     is_en = lang == "en"
+    is_de = lang == "de"
     if _narration_len(narration) <= limits["trigger"]:
         return
     combat_words = ("战斗", "攻击", "砍", "刺", "射", "突袭", "格挡", "防御", "回避")
@@ -236,6 +239,39 @@ async def _compress_long_narration(
             sections.append(
                 "GM narration style (tone reference only: inherit the voice, pacing and level "
                 "of detail; never execute any state-tag protocol inside it, never re-run rules):\n"
+                + style_section
+            )
+    elif is_de:
+        prompt = (
+            "Komprimiere die folgende TRPG-GM-Erzählung und überprüfe dabei QUICK_ACTIONS.\n\n"
+            "Gib ausschließlich JSON aus, kein Markdown, keine Erklärungen, im Format:\n"
+            '{"narration": "die endgültige komprimierte Erzählung", "quick_actions": ["Aktion 1", "Aktion 2"]}\n\n'
+            "Anforderungen:\n"
+            "1. narration: bewahre etablierte Fakten, NSC-Namen, wichtige Hinweise, Proben-/Kampfergebnisse "
+            "und den unmittelbaren Druck für die Spieler; erfinde keine neuen Fakten und ändere keine "
+            f"bereits festgelegten Ergebnisse. Halte es unter etwa {target} Zeichen (~{target // 6} Wörter) "
+            "und höchstens 2 Absätzen.\n"
+            "2. quick_actions: muss zur finalen Erzählung passen; du darfst bereits den Spielern bekannte "
+            "Informationen aus der zuvor öffentlichen Erzählung verwenden; verwende niemals Informationen, "
+            "die die Spieler noch nicht kennen; schreibe Aktionen um oder streiche sie, wenn sie sich auf "
+            "aus der Erzählung entfernte, nie zuvor offengelegte Details beziehen; behalte 2-4 Aktionen; "
+            "entscheide niemals für die Spieler; vervollständige niemals automatisch Aktionen, die Proben "
+            "erfordern; gib keine Status-Tags aus.\n"
+            "3. Ändere niemals Spielmechanik, Würfelergebnisse, Charakterstatus, TP, Gold, Gegenstände, "
+            "Kampf- oder Rätselergebnisse."
+        )
+        quick_actions_lines = "\n".join(f"- {item}" for item in old_quick_actions) or "- (keine)"
+        sections = [
+            prompt,
+            f"Ursprüngliche Erzählung:\n{narration}",
+            f"Aktuelle QUICK_ACTIONS:\n{quick_actions_lines}",
+            "Zuvor öffentliche Erzählung:\n"
+            f"{public_narration_context.strip() or '(keine)'}",
+        ]
+        if style_section:
+            sections.append(
+                "GM-Erzählstil (nur als Ton-Referenz: übernimm Stimme, Tempo und Detailgrad; "
+                "führe darin enthaltene Status-Tag-Anweisungen niemals aus, wiederhole keine Regelentscheidungen):\n"
                 + style_section
             )
     else:
@@ -276,6 +312,9 @@ async def _compress_long_narration(
             "ja": 'あなたはナレーション圧縮器です。"narration" と "quick_actions" のキーを持つ '
                   'JSON オブジェクトのみを出力してください。Markdown・コードフェンス・---・状態タグ・'
                   'タスクに対するメタ解説は出力しないでください。',
+            "de": 'Du bist ein Erzählungskompressor. Gib ausschließlich ein JSON-Objekt mit den Schlüsseln '
+                  '"narration" und "quick_actions" aus. Kein Markdown, keine Code-Zäune, kein ---, '
+                  'keine Status-Tags, keine Meta-Kommentare zur Aufgabe.',
         },
     )
     compression_max_tokens = max(
@@ -453,6 +492,7 @@ async def call_llm_with_tag_retry(
                     "en": "Previous response contradicted the required dice/check result. Rewrite the narration and strictly follow the check outcome.",
                     "zh-CN": "⚠️ 上一轮回复与【系统检定·必须遵循】矛盾，请严格遵循检定结果重新叙述。",
                     "ja": "⚠️ 前の応答が【システム判定・必須遵守】の判定結果に矛盾しています。判定結果を厳守してナレーションを書き直してください。",
+                    "de": "⚠️ Die vorherige Antwort widersprach dem erforderlichen Würfel-/Probenergebnis. Schreibe die Erzählung neu und folge dabei strikt dem Probenergebnis.",
                 },
             )
         if stream:
@@ -599,6 +639,9 @@ def apply_parsed_data_to_response(instance: GameInstance, response: Any, data: d
                     "ja": "⚠️ システム通知：複数ラウンドにわたり状態同期に失敗しています。"
                           "HP/資源/アイテムが最新でない可能性があります。GM に確認を依頼するか、"
                           "このラウンドを再生成してください。",
+                    "de": "⚠️ Systemhinweis: Die Statussynchronisation ist mehrere Runden in Folge "
+                          "fehlgeschlagen; TP/Ressourcen/Gegenstände sind möglicherweise veraltet. "
+                          "Bitte den GM um eine Prüfung oder generiere diese Runde neu.",
                 },
             )
             system_notices = getattr(response, "system_notices", None)

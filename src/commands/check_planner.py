@@ -39,7 +39,7 @@ _is_non_combat_declaration = is_non_combat_declaration
 
 
 def _prompt_text(language: str) -> str:
-    suffix = localized_text(language, {"en": "en", "zh-CN": "zh", "ja": "ja"})
+    suffix = localized_text(language, {"en": "en", "zh-CN": "zh", "ja": "ja", "de": "de"})
     path = Path(__file__).resolve().parents[2] / "prompts" / f"check_planner_{suffix}.md"
     return path.read_text(encoding="utf-8")
 
@@ -264,10 +264,12 @@ def _label(
     en_suffix = {"save": "Save", "attack": "Attack"}.get(kind, "Check")
     zh_suffix = {"save": "豁免", "attack": "攻击"}.get(kind, "检定")
     ja_suffix = {"save": "セーヴ", "attack": "攻撃"}.get(kind, "判定")
+    de_suffix = {"save": "Rettungswurf", "attack": "Angriff"}.get(kind, "Probe")
     return localized_text(instance.language, {
         "en": f"{subject} {en_suffix}".strip(),
         "zh-CN": f"{subject}{zh_suffix}",
         "ja": f"{subject}{ja_suffix}",
+        "de": f"{subject} {de_suffix}".strip(),
     })
 
 

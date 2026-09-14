@@ -144,7 +144,7 @@ def _fallback_intent_specs(language: str) -> list[tuple[str, tuple[str, ...], tu
     """兜底意图表（数据驱动），结构同旧 _INTENT_SPECS：[(intent, aliases, skills, attr)]。"""
     result: list[tuple[str, tuple[str, ...], tuple[str, ...], str]] = []
     intents = _FALLBACK_INTENTS.get("intents") or {}
-    lang = localized_text(language, {"en": "en", "zh-CN": "zh-CN", "ja": "ja"})
+    lang = localized_text(language, {"en": "en", "zh-CN": "zh-CN", "ja": "ja", "de": "de"})
     for intent, block in intents.items():
         aliases = block.get("aliases") or {}
         skills = block.get("skill_candidates") or {}
@@ -159,7 +159,7 @@ def _fallback_intent_specs(language: str) -> list[tuple[str, tuple[str, ...], tu
 def _fallback_generic_words(language: str) -> tuple[str, ...]:
     """兜底通用检定词（按语言取，回退英文再中文）。"""
     words = _FALLBACK_INTENTS.get("generic_check_words") or {}
-    lang = localized_text(language, {"en": "en", "zh-CN": "zh-CN", "ja": "ja"})
+    lang = localized_text(language, {"en": "en", "zh-CN": "zh-CN", "ja": "ja", "de": "de"})
     return tuple(words.get(lang) or words.get("en") or words.get("zh-CN") or ())
 
 
@@ -302,6 +302,7 @@ def build_check_request(
         "en": f"{subject} Check",
         "zh-CN": f"{subject}检定",
         "ja": f"{subject}判定",
+        "de": f"{subject}-Probe",
     })
     advantage_mode, advantage_note = detect_advantage_mode(text, action, rule)
     actor_name = str(instance.players.get(uid, {}).get("character_name") or uid)
@@ -532,6 +533,7 @@ def _duplicate_channel_note(language: object) -> str:
         "en": "The situational adjustment contained a duplicated or unsupported entry; only one channel was applied.",
         "zh-CN": "情境修正存在重复或无依据的计入项，已按单一渠道结算。",
         "ja": "状況修正に重複または根拠のない計上項目があったため、単一の経路のみで処理した。",
+        "de": "Die situative Anpassung enthielt einen doppelten oder unbelegten Eintrag; es wurde nur ein Kanal angewendet.",
     })
 
 
