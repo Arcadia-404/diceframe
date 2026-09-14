@@ -193,6 +193,23 @@ To develop or publish a plugin, see the [plugin development guide](https://githu
 | Plugin index and review | [Plugin registry](https://github.com/diceframe/diceframe-content/blob/main/docs/en/plugin-registry.md) | [插件索引与审核](https://github.com/diceframe/diceframe-content/blob/main/docs/zh/plugin-registry.md) |
 | Bot Bridge core | [Bot Bridge Core](https://github.com/diceframe/diceframe-content/blob/main/docs/en/bot-bridge-core.md) | [Bot Bridge 核心](https://github.com/diceframe/diceframe-content/blob/main/docs/zh/bot-bridge-core.md) |
 
+## Language support
+
+DiceFrame WebUI currently supports the following interface languages:
+
+- Simplified Chinese
+- English
+- Japanese
+- German
+
+> Note: German support has been available since version v2.5.9-beta.1.
+
+On first launch, DiceFrame automatically selects the interface language based on the browser language. Users can switch languages at any time from the language selector in the top-right corner, and the selected language is remembered.
+
+Game language currently supports Simplified Chinese, English, and German for AI GM narration, prompts, and the main gameplay flow. Ruleset content or specialized interfaces that do not yet provide a translation may fall back to English.
+
+Japanese is currently supported across the WebUI and primary interface text. Some game content and ruleset resources may still fall back to English.
+
 ## Data And Privacy
 
 Runtime data is stored in:
