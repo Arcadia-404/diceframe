@@ -205,3 +205,13 @@ def test_dividers_are_deterministic_and_contrast_adaptive() -> None:
     Image.new("RGB", (400, 200), (20, 20, 20)).save(dark, format="PNG")
     dark_result = Image.open(io.BytesIO(overlay_storyboard_dividers(dark.getvalue(), 3)))
     assert dark_result.getpixel((266, 10)) == (238, 240, 244)
+
+
+def test_six_panel_dividers_form_a_three_by_two_grid() -> None:
+    source = io.BytesIO()
+    Image.new("RGB", (600, 400), "white").save(source, format="PNG")
+    result = Image.open(io.BytesIO(overlay_storyboard_dividers(source.getvalue(), 6)))
+    assert result.getpixel((200, 40)) == (28, 31, 35)
+    assert result.getpixel((400, 40)) == (28, 31, 35)
+    assert result.getpixel((40, 200)) == (28, 31, 35)
+    assert result.getpixel((100, 100)) == (255, 255, 255)
