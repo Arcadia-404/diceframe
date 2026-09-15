@@ -29,6 +29,16 @@ describe('CurrentRoundImageModal', () => {
     expect(prompt).toBe('雾港码头')
   })
 
+  it('truncates long narration at the server-side context limit', () => {
+    const longNarration = '雾'.repeat(2500)
+    const wrapper = mountModal(
+      { scene: '雾港码头', round_number: 5 },
+      [{ round: 4, gm_response: longNarration }],
+    )
+    const prompt = wrapper.get('textarea').element.value
+    expect(prompt).toBe(`雾港码头\n${'雾'.repeat(1600)}`)
+  })
+
   it('emits the target round and manual payload on generate', async () => {
     const wrapper = mountModal(
       { scene: '雾港码头', round_number: 5 },

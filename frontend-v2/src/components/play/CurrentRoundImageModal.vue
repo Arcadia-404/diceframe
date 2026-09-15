@@ -25,13 +25,17 @@ const uploadAvatarIds = computed(() => new Set(
 ))
 const canUseAvatarReferences = computed(() => uploadAvatarIds.value.size > 0)
 
+// Mirrors the server-side narration truncation in
+// src/webui/services/generated_images.py generate_current_round().
+const NARRATION_LIMIT = 1600
+
 function draftPrompt(): string {
   const latest = [...props.log].reverse().find(item => String(item.gm_response || '').trim())
   const round = Number(latest?.round ?? Math.max(0, Number(props.detail.round_number || 0) - 1))
   targetRound.value = round
   useAvatarReferences.value = false
   const scene = String(props.detail.scene || t('unknownScene'))
-  const narration = String(latest?.gm_response || '').replace(/\s+/g, ' ').slice(0, 700)
+  const narration = String(latest?.gm_response || '').replace(/\s+/g, ' ').slice(0, NARRATION_LIMIT)
   // Content only: style and composition wording is composed server-side from
   // imagegen_style_prefix / imagegen_manual_rules / imagegen_manual_prompt.
   return [scene, narration].map(part => part.trim()).filter(Boolean).join('\n')
