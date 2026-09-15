@@ -32,7 +32,9 @@ function draftPrompt(): string {
   useAvatarReferences.value = false
   const scene = String(props.detail.scene || t('unknownScene'))
   const narration = String(latest?.gm_response || '').replace(/\s+/g, ' ').slice(0, 700)
-  return `第${round}轮，场景：${scene}。${narration ? `当前叙事：${narration}。` : ''}桌面跑团场景概念图，横向构图，清晰主体和环境，适度写实，有限色彩，适合游戏桌面展示；不要文字、标签、水印或 UI。`
+  // Content only: style and composition wording is composed server-side from
+  // imagegen_style_prefix / imagegen_manual_rules / imagegen_manual_prompt.
+  return [scene, narration].map(part => part.trim()).filter(Boolean).join('\n')
 }
 
 watch(() => props.open, (open) => {
