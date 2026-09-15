@@ -116,45 +116,13 @@ def _last_scene_image_signature(instance: GameInstance) -> tuple[str, tuple[tupl
     return "", ()
 
 
-def _scene_image_prompt_from_context(
-    instance: GameInstance,
-    completed_round: int,
-    scene_change: str,
-) -> str:
-    """Build a usable image prompt when the GM emitted SCENE without SCENE_IMAGE."""
-    entry = next(
-        (
-            item for item in reversed(instance.log)
-            if _log_round(item, -1) == completed_round
-            and str(item.get("gm_response") or "").strip()
-        ),
-        None,
-    )
-    narration = " ".join(str((entry or {}).get("gm_response") or "").split())[:700]
-    scene = str(scene_change or getattr(instance, "scene", "") or "").strip()
-    if not scene and not narration:
-        return ""
-    return (
-        f"TRPG scene illustration. Location: {scene or 'current scene'}. "
-        f"Narrative context: {narration}. "
-        "Wide composition, clear subjects and environment, grounded atmosphere, "
-        "limited colors, no text, labels, watermark, or UI."
-    )
-
-
-def _scene_storyboard_payload(data: dict, instance: GameInstance, completed_round: int) -> tuple[str, list[dict[str, Any]], int]:
+def _scene_storyboard_payload(data: dict) -> tuple[str, list[dict[str, Any]], int]:
     """Return a shared prompt plus normalized public panels for this round."""
     raw_panels = data.get("scene_panels")
     panels, compressed_count = normalize_scene_panels(raw_panels)
     if not panels:
         return "", [], compressed_count
     global_prompt = str(data.get("scene_image_prompt") or "").strip()
-    if not global_prompt:
-        global_prompt = _scene_image_prompt_from_context(
-            instance,
-            completed_round,
-            str((data.get("state_update") or {}).get("scene_change") or ""),
-        )
     # The image service is the single owner of provider prompt composition.
     # Keep this value as the ordinary/global prompt so it cannot be composed twice.
     return global_prompt, panels, compressed_count
@@ -611,7 +579,7 @@ class RoundProcessor:
         return task
 
     def _maybe_schedule_scene_image(self, instance: GameInstance, data: dict) -> asyncio.Task | None:
-        """Schedule scene art from SCENE_IMAGE, or derive it from a SCENE change."""
+        """Schedule scene art only when the GM emits an explicit SCENE_IMAGE."""
         service = self._image_generation
         if service is None or not service.available or not service.auto_scene:
             return None
@@ -619,30 +587,21 @@ class RoundProcessor:
         completed_round = int(instance.round_number) - 1
         if completed_round < 0:
             return None
-        storyboard_prompt, panels, compressed_count = _scene_storyboard_payload(
-            data, instance, completed_round,
-        )
-        if panels:
-            prompt = storyboard_prompt
-        scene_change = str((data.get("state_update") or {}).get("scene_change") or "").strip()
-        if not prompt and scene_change:
-            prompt = _scene_image_prompt_from_context(instance, completed_round, scene_change)
+        _, panels, compressed_count = _scene_storyboard_payload(data)
         if not prompt:
             return None
-        # 场景切换时即使描述与上一张相同也重新生成（场景确实变了）；
-        # 否则与上一张相同的描述视为模型复读，跳过。
+        # Explicit image directives still use the normal duplicate throttle.
         return self.schedule_scene_image(
             instance,
             prompt,
             completed_round,
-            force=bool(scene_change),
+            force=False,
             panels=panels,
             compressed_count=compressed_count,
         )
 
     def schedule_opening_scene_image(self, instance: GameInstance) -> asyncio.Task | None:
-        """Treat the persisted round-zero opening as the first scene appearance."""
-        prompt = _scene_image_prompt_from_context(instance, 0, str(instance.scene or ""))
+        """Schedule an opening image only when round zero explicitly requested one."""
         opening = next(
             (
                 item for item in reversed(instance.log)
@@ -651,6 +610,7 @@ class RoundProcessor:
             ),
             {},
         )
+        prompt = str(opening.get("scene_image_prompt") or "").strip()
         panels, compressed_count = normalize_scene_panels(opening.get("scene_panels"))
         return (
             self.schedule_scene_image(
@@ -690,8 +650,6 @@ class RoundProcessor:
         character_appearances = public_character_appearances(
             getattr(instance, "players", {}),
         )
-        if not prompt and normalized_panels:
-            prompt = _scene_image_prompt_from_context(instance, completed_round, "")
         if service is None or not service.available or not service.auto_scene or not prompt:
             return None
         compressed_count = max(0, int(compressed_count or 0)) + removed
