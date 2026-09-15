@@ -1,101 +1,61 @@
-# DiceFrame v2.5.9
+# DiceFrame v2.6.0
 
-> 正式版：包含 **v2.5.9-beta.1 的全部变更**（德语支持与长文本语言布局修复），并新增 D&D 2024 AI 队友（战斗 / 代检定 / 战斗外施法）、检定规划器的物品与 NPC 上下文，恢复 GM 流程两列布局，修复多人幸运选择等待可靠性。
+> 正式版：统一货币模型（规则定义货币结构、economy 只处理 canonical 整数、CoC 升级为美元/美分并迁移存量存档）、内建场景图自动/手动生成与分镜、角色技能「效果说明」，并修复模型思考内容泄漏与检定规划器多语言不一致。
 
 ## 中文
 
-### 新增内容（v2.5.9-beta.1 之后）
+### 新增内容
 
-- **D&D 2024 AI 队友战斗**：队友是"己方角色"而不是友方怪物，全链路走同一权威 validate / resolve / apply——开战先攻 = 玩家 + 活跃队友 + 敌人；敌我、治疗、增益、攻击目标全部按阵营（side）判定；队友武器攻击走与玩家相同的装备 / 目录确定性链；队友 HP / 法术位 / 专注 / 状态写回 `ruleset_state.party.companions[*].ruleset_character` canonical 权威。AI 队友自动回合按确定性优先级行动（治疗濒危己方 → 攻击最近 / 低血敌人 → 移动 → Dodge → 结束回合），提交权威为 GM 自动化，玩家伪造队友意图会被服务端拒绝；0 HP 队友跳过回合，队友死亡不触发玩家团灭判定。
-- **队友代检定与协助**：检定请求新增 `actor_ref`（缺省 `player:<uid>`，旧路径完全兼容）——"让米拉去推门"用米拉的力量 / 运动做检定；"米拉帮我"是玩家检定 + 队友协助，规则声明 `assistance_grants` 时给优势。匹配显式前缀 / 玩家与队友名字，精确优先、歧义拒绝、不猜测叙事 NPC；安全网按 actor_uid 去重，队友检定不会被覆盖成玩家检定。
-- **战斗外施法**：新增 `exploration.cast_spell` 意图（仅非战斗中、玩家本人）：校验法术合法性 / 已知 / 法术位 / 目标 / 专注；复用 canonical `spellcasting.class.slots_current`，不建第二份资源；确定性治疗 / 增益直接结算，伤害类确定性效果在探索态拒绝；无确定性效果的已知法术扣位后交叙事层（`resolution=narrative`），禁止模型改数值。
-- **检定规划器物品与 NPC 上下文**：回合检定规划器在决定是否检定前可见行动者已有的物品摘要（小背包完整、大背包确定性筛选，每人最多 20 条）与明确 NPC 目标的关系摘要——"用已有的钥匙开门"与徒手撬锁按不同行动手段裁定；没有显式目标或行动同时命中多方时省略摘要，不按名字猜目标；英文 / 日文 / 德文 prompt 补充字段契约，中文裁定指南按裁定流程重组。
-- **前端**：先攻 / 目标列表自动包含队友（服务端投影），回合标签显示"米拉（AI 队友）正在行动…"；战斗工具页按服务端 `available_intents` 渲染「非战斗施法」卡（法术 / 法术位 / 队伍目标），不硬编码按钮。
+- **货币模型 V2（统一货币结构）**：规则的货币结构只由 `currency_system` 声明——`base_unit`（economy 引擎记账的最小单位，rate 恒为 1）、`display_unit`（默认展示单位）与各单位正整数比率；economy 引擎继续只处理 canonical 整数，不感知货币名称，也绝不散落 ×100 / ÷100。显示金额 ↔ canonical 整数的换算有唯一入口（后端 CurrencyCodec、前端 `utils/currency.ts`），不精确即拒绝，不使用浮点。内置 CoC 规则升级为「美元 / 美分」（base = 美分），存量 CoC 存档按版本化迁移一次性 ×100（余额、提案、流水与失败回滚快照、奖励上限同步换算），其它规则与旧自定义规则数据不动。
+- **GM 金钱指令与支付**：GM 指令支持小数与规则货币单位（`给张三增加0.25美元`、`给张三增加25美分`、`加金币5`），回执与数值修正提示显示格式化金额（`$0.25`）；GM 支付弹窗与奖励上限按展示单位输入。
+- **检定规划器经济协议与购买 fail-safe**：价格改为「十进制金额字符串 + canonical 单位」，由服务端换算，模型不得自行换算。价格无法结算（单位不在规则货币表、金额无法精确折算、超出上限等）时**不再丢弃购买意图**——降级为「无价购买意图」，在本轮阻止该商品被免费发放；规则货币与叙事用词不一致时不会再出现"白拿商品"。新增 `FREE_GRANT` 标签：仅当剧情明确「免费 / 赠送 / 奖励」时才放行发放，且不能绕过已存在的待确认扣款提案。
+- **规则编辑与 AI 生成规则的货币定义**：规则编辑器可用简单表单定义货币（货币名称 / 是否存在更小单位 / 主要单位 / 最小单位 / 比率 / 符号），多单位高级货币继续用高级 JSON；非法货币结构拒绝保存，已有对局的规则禁止直接修改 base_unit 语义。AI 生成规则支持 `currency_system`，坏 schema 整体拒绝落盘。
+- **场景图自动/手动生成与分镜**：图像生成能力内建到核心（不再依赖旧插件形式）。保留 `SCENE_IMAGE` 协议：默认仅当模型输出 `SCENE_IMAGE` 时自动生成场景图，普通 `SCENE` 不触发；`SCENE_PANEL` 只作为分镜附加数据（最多 6 格），不能单独触发；开场、普通回合与滑动重生成遵循同一规则。支持手动生成当前回合场景图（自动带入当前场景与最近一轮公开叙事，可编辑描述），可上传公开角色头像作为参考图，场景图 / 图库 / 头像支持点击放大。图像设置分基础（启用、自动/手动生图、服务商与模型、风格前缀）与高级（提示词规则与模板、尺寸、质量、超时）两档；地图背景图保持独立，不并入分镜系统。
+- **角色技能「效果说明」**：每个技能可填写一句效果说明（例如「火焰球 / 效果：向目标发射火球，造成火焰伤害。」），角色卡展示为「效果：…」，检定规划器在**当前行动使用该技能时**把它作为语义参考。效果说明是玩家提供的描述文本、**不是规则权威**：无论其中写「必中」「+10」「3d6伤害」「恢复HP」都不会改变骰值、DC、优势/劣势、伤害、HP、资源或状态，机械结果仍由当前规则与服务端权威结算。
 
-### 修复内容（v2.5.9-beta.1 之后）
+### 修复内容
 
-- **GM 控台布局**：恢复多语言布局前 GM 流程栏的两列按钮布局，桌面控制栏适度加宽；移动端保持单列。
-- **多人幸运选择等待可靠性**：多人默认超时提升为 180 秒（显式设置仍优先）；前端明确显示自己的待处理状态与仍在等待的玩家数量，服务端状态仍为唯一真值；补充手动 / 超时竞态与并发决议回归测试。
+- **模型思考内容泄漏**：推理 / think 输出被剥离，不再出现在玩家可见的叙事文本中。
+- **检定规划器多语言一致性**：英 / 日 / 德 prompt 同步到中文重构结构（裁定流程、上下文依据、裁定示例、检定参数与渠道、输出与服务端权威、附加识别），非中文对局的检定裁定质量不再落后于中文对局。
 
-### 以下为 v2.5.9-beta.1 的全部内容（随本版一并发布）
+### 升级说明
 
-#### 德语（Deutsch）支持
-
-- **德语作为第四种界面语言**：主 UI 全面支持德语（设置、创建、GM、机器人等）；GM 叙事 / 检定规划 / 战斗解说等后端 prompt 提供德语版本；浏览器语言 `de` / `de-DE` / `de-AT` / `de-CH` 自动进入德语界面。
-- **德语专业组件回退策略**：D&D 2024 建卡 / 职业升级 / 专业角色中心等暂无德语翻译的专业页面统一回退英文，而不是错误回退中文。
-- **德语 AI 规则生成字段协议统一**：德语生成的自定义规则会把德语文本物化进 `*_de` 字段，再次用于德语建卡 / prompt 时不再掉回英语；authoritative 字段协议与 `localized_field()` 回退顺序未改动。
-
-#### 德语相关修复
-
-- **语音识别语言**：德语界面语音输入使用 `de-DE`（此前被误送 `zh-CN`）。
-- **公告回退**：官方公告只有中英双语，德语 / 日语及其他非中文界面统一回退英文公告。
-- **世界语言标签**：世界卡列表能正确显示 `de` 世界的"Deutsch"标签。
-- **规则名回退**：角色页在德语 / 日语界面显示英文规则名，而不是中文 canonical 名。
-
-#### 界面自适应（长文本语言溢出修复）
-
-- **Settings 状态卡**：删除固定单行 flex 覆盖，改为自适应网格（`auto-fit minmax(220px, 1fr)`）；状态标题与标签可换行，长词自动折行；≤800px 保留横向滚动策略。
-- **GM 控台**：流程按钮组改为自适应列数（宽屏 2 列、窄屏自动 1 列）；工具栏按钮允许换行且保持完整可读（不使用省略号）；文风选择按钮改 flex 折行。
-- **Characters**：当前角色操作按钮不再强制单行，操作区按内容自适应列数（≤520px 单列）；共享角色卡按钮允许换行。
-- **语言下拉**：右上角语言名称统一为 简体中文 / English / 日本語 / Deutsch。
-
-### 升级提示
-
-- **无破坏性存档迁移**：队友状态挂在 `ruleset_state.party.companions[*].ruleset_character`，新增字段均为可选 / 追加。
-- 建议升级重要战役前备份完整 `data/` 目录。
+- **CoC 存档会自动迁移一次**：`freeform_coc` 局的余额、提案、流水与回滚快照、奖励上限按「美元 → 美分」换算（×100，金额含义不变）；迁移有版本号保护，只执行一次，其他规则与自定义规则不会被动数据。
+- 货币相关的新字段（`currency_system`）为可选/增量；旧规则只有货币名称时按 legacy 语义继续工作，不会被自动解释成更小单位。
+- 升级重要对局前请备份完整的 `data/` 目录。
 
 ### 下载与校验
 
-- **普通 Windows 用户**：`DiceFrame-v2.5.9-windows-portable.zip`
-- **源码运行用户**：`DiceFrame-v2.5.9-windows.zip`
-- **托管 Docker 更新**：`DiceFrame-v2.5.9-docker-update-linux-amd64.zip`
+- **普通 Windows 用户**：`DiceFrame-v2.6.0-windows-portable.zip`
+- **源码运行用户**：`DiceFrame-v2.6.0-windows.zip`
+- **托管 Docker 更新**：`DiceFrame-v2.6.0-docker-update-linux-amd64.zip`
 - 下载后请使用 Release 中的 `SHA256SUMS` 校验文件。
 
 ## English
 
-### New (after v2.5.9-beta.1)
+### New
 
-- **D&D 2024 AI companions in combat**: companions are party-side characters rather than friendly monsters, and the whole chain shares the same authoritative validate / resolve / apply — combat initiative = players + active companions + enemies; hostility, healing, buffing and attack targeting are all decided by side; companion weapon attacks reuse the player's equipment/catalog deterministic chain; companion HP / spell slots / concentration / conditions write back to `ruleset_state.party.companions[*].ruleset_character` as canonical authority. Automatic companion turns follow a deterministic priority (heal endangered allies → attack nearest / low-HP enemies → move → Dodge → End Turn) with GM automation as submit authority; forged companion intents from players are rejected server-side; 0 HP companions are skipped, and a companion dying never triggers the player party wipe check.
-- **Delegated checks and companion assistance**: check requests take a new `actor_ref` (default `player:<uid>`, fully backward compatible) — "let Mira push the door" runs the check with Mira's STR / Athletics; "Mira, help me" is a player check with companion assistance, gaining advantage when the rules declare `assistance_grants`. Matching accepts explicit prefixes and player/companion names — exact first, ambiguous refused, narrative NPCs never guessed; the safety net deduplicates by actor_uid so a companion check is never overwritten by the player's.
-- **Out-of-combat spellcasting**: new `exploration.cast_spell` intent (only while combat is not active, by the player themselves): validates spell legality / known / slots / targets / concentration; reuses canonical `spellcasting.class.slots_current` instead of a second resource; deterministic heals / buffs resolve directly, deterministic damage effects are refused in exploration; known spells without deterministic effects spend a slot and hand off to narration (`resolution=narrative`), with the model forbidden from touching numbers.
-- **Check planner item & NPC context**: the turn check planner now sees a read-only summary of the actor's owned items (small packs complete, large packs deterministically filtered, max 20 entries per actor) and of explicitly targeted NPCs' identity and relations — "open the door with the owned key" and bare-handed lockpicking adjudicate as different means; summaries are omitted when there is no explicit target or the action simultaneously hits several parties, never guessed from name length; en / ja / de prompts gain the same field contract and the Chinese adjudication guide is reorganized around the adjudication flow.
-- **Frontend**: initiative / target lists automatically include companions (server projection) with turn labels like "Mira (AI companion) is acting…"; the combat tool page renders the "out-of-combat spellcasting" card (spells / slots / party targets) from server `available_intents` instead of hardcoded buttons.
+- **Currency Model V2 (unified currency structure)**: a rule's currency is declared solely through `currency_system` — `base_unit` (what the economy ledger counts, rate always 1), `display_unit` (default display unit) and positive integer unit rates. The economy engine keeps working on canonical integers only and never learns currency names; no scattered ×100 / ÷100. Display amounts convert through a single codec (backend CurrencyCodec, frontend `utils/currency.ts`), rejecting anything not exactly representable and never using floats. The built-in CoC rule is upgraded to dollar / cent (base = cent), and existing CoC saves run a one-time versioned ×100 migration (balances, proposals, ledger and rollback snapshots, reward caps); other rules and legacy custom rules keep their data untouched.
+- **GM money commands and payments**: GM commands accept decimals and rule currency units (`给张三增加0.25美元`, `给张三增加25美分`, `加金币5`) and report formatted amounts (`$0.25`); the GM payment dialog and reward cap are entered in the display unit.
+- **Planner economy protocol and purchase fail-safe**: prices are now a decimal string plus a canonical unit, converted server-side — the model never converts units itself. When a price cannot be settled (unknown unit, amount not exactly representable, over cap, …) the purchase intent is **no longer dropped**: it degrades to an unpriced purchase intent that blocks free delivery of that item for the round, so narration wording that disagrees with the rule currency can no longer hand out goods for free. New `FREE_GRANT` tag releases an item only when the story explicitly establishes it as free / a gift / a reward, and never overrides an existing pending charge.
+- **Rule editor and AI-generated currency definitions**: the rule editor defines currency through a simple form (name, whether a smaller unit exists, major/minor unit, rate, symbol) while multi-unit advanced currencies stay in the advanced JSON; invalid currency declarations are refused, and rules with existing games cannot change base-unit semantics. AI-generated rules may declare `currency_system` and bad schemas are rejected outright.
+- **Scene images (auto/manual) and storyboards**: image generation is built into the core instead of relying on the old plugin form. The `SCENE_IMAGE` protocol is preserved: scene images auto-generate only when the model emits `SCENE_IMAGE` (a plain `SCENE` does not), `SCENE_PANEL` is storyboard-only data (up to 6 panels) and never triggers generation, and opening scenes, normal rounds and swipe regeneration follow the same rule. The current round's scene image can be generated manually (prefilled with the scene and the latest public narration, editable), public character portraits can be attached as reference images, and scene/gallery images and portraits open in a lightbox. Image settings are split into basic (enable, auto/manual generation, provider and model, style prefix) and advanced (prompt rules and templates, size, quality, timeout); map backgrounds stay independent of the storyboard system.
+- **Per-skill effect description**: each character skill accepts a short effect note (e.g. 火焰球 / 效果：向目标发射火球，造成火焰伤害。). It is shown on the character sheet as an "Effect:" line and passed to the check planner as semantic context **only when the current action uses that skill**. It is player-authored description and **not rules authority**: even text claiming "always hits", "+10", "3d6 damage" or "restores HP" cannot change dice, DC, advantage, damage, HP, resources or status — all mechanics stay with the current rules and server authority.
 
-### Fixes (after v2.5.9-beta.1)
+### Fixes
 
-- **GM console layout**: restored the pre-multilingual two-column flow button layout and modestly widened the desktop console; mobile stays single-column.
-- **Multiplayer luck decision reliability**: the multiplayer default timeout is raised to 180 seconds (explicit settings still win); the frontend shows your own pending state and how many players are still waiting, while server state remains the single source of truth; regression tests cover manual/timeout races and concurrent resolutions.
-
-### All of v2.5.9-beta.1 (included in this release)
-
-#### German (Deutsch) support
-
-- **German as the fourth UI language**: full main-UI German coverage (settings, creation, GM, bots); backend prompts for GM narration / check planning / combat commentary ship German variants; browser locales `de` / `de-DE` / `de-AT` / `de-CH` activate the German UI automatically.
-- **German professional-page fallback**: D&D 2024 builder / advancement / professional character center pages without German translations fall back to English instead of incorrectly showing Chinese.
-- **German AI rule field protocol**: AI-generated German rules materialize German text into `*_de` fields, so reusing them in German character creation / prompts no longer falls back to English; authoritative field contracts and the `localized_field()` fallback order are unchanged.
-
-#### German-related fixes
-
-- **Speech recognition language**: German UI voice input uses `de-DE` (previously sent as `zh-CN`).
-- **Announcements fallback**: official announcements are zh/en only; German, Japanese and other non-Chinese UIs fall back to English announcements.
-- **World language labels**: world cards show a "Deutsch" label for `de` worlds.
-- **Rule name fallback**: the characters page shows English rule names in German/Japanese UIs instead of the Chinese canonical name.
-
-#### UI adaptive layout (long-language overflow fixes)
-
-- **Settings status cards**: removed the fixed single-row flex override in favor of an auto-fit grid (`minmax(220px, 1fr)`); headings and tags wrap; long words break anywhere; the ≤800px horizontal-scroll strategy is preserved.
-- **GM console**: flow button groups use adaptive columns (2 on wide, 1 on narrow); toolbar buttons wrap while staying fully readable (no ellipsis); style option buttons flex-wrap.
-- **Characters**: current-character action buttons no longer force a single line, the action area adapts its column count (single column ≤520px); shared character card buttons wrap.
-- **Language dropdown**: unified names — 简体中文 / English / 日本語 / Deutsch.
+- **Model reasoning leakage**: reasoning / think output is stripped and no longer reaches player-visible narration.
+- **Check planner multilingual consistency**: the EN / JA / DE prompts are synced to the restructured Chinese guide (adjudication flow, context basis, examples, check parameters and channels, output and server authority, additional detection), so non-Chinese tables no longer lag behind.
 
 ### Upgrade notes
 
-- **No breaking save migration**: companion state lives under `ruleset_state.party.companions[*].ruleset_character`; new fields are optional/additive.
+- **CoC saves migrate once automatically**: `freeform_coc` balances, proposals, ledger and rollback snapshots, and reward caps are converted from dollars to cents (×100, same real amounts). The migration is versioned and runs exactly once; other rules and custom rules are never rewritten.
+- New currency fields (`currency_system`) are optional and additive; rules that only carry a currency name keep legacy semantics and are never reinterpreted as a smaller unit.
 - Back up the complete `data/` directory before upgrading important campaigns.
 
 ### Downloads and verification
 
-- **Regular Windows users**: `DiceFrame-v2.5.9-windows-portable.zip`
-- **Source users**: `DiceFrame-v2.5.9-windows.zip`
-- **Managed Docker update**: `DiceFrame-v2.5.9-docker-update-linux-amd64.zip`
+- **Regular Windows users**: `DiceFrame-v2.6.0-windows-portable.zip`
+- **Source users**: `DiceFrame-v2.6.0-windows.zip`
+- **Managed Docker update**: `DiceFrame-v2.6.0-docker-update-linux-amd64.zip`
 - Verify downloads with the `SHA256SUMS` file attached to the Release.
