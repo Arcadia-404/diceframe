@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from src.compat.characters import MAX_SKILL_EFFECT_CHARS
 from src.engine.check_channels import normalize_check_channels
 from src.engine.checks import (
     build_check_request,
@@ -47,7 +48,33 @@ def _prompt_text(language: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _skill_rows(sheet: dict[str, Any]) -> list[dict[str, Any]]:
+def _skill_action_matches(effect_owner: str, action_text: str) -> bool:
+    """Deterministic match: the action text mentions this skill's name.
+
+    First version deliberately stays trivial (normalized containment); no
+    embeddings, no LLM retrieval, no alias inference.
+    """
+
+    skill = re.sub(r"\s+", "", effect_owner).casefold()
+    action = re.sub(r"\s+", "", str(action_text or "")).casefold()
+    return bool(skill) and skill in action
+
+
+def _skill_rows(
+    sheet: dict[str, Any],
+    action_text: str = "",
+    selected_skill: str = "",
+    include_matching_effects: bool = False,
+) -> list[dict[str, Any]]:
+    """Project sheet skills for planning/display.
+
+    ``effect`` is descriptive metadata, never mechanical authority: it is only
+    attached when the caller asks for it AND the current action actually uses
+    that skill — either the action text mentions its name, or the player
+    explicitly selected it (``selected_skill``).  It never enters
+    roll/DC/damage resolution.
+    """
+    selected = str(selected_skill or "").strip().casefold()
     rows: list[dict[str, Any]] = []
     for item in sheet.get("skills", []) or []:
         if isinstance(item, dict):
@@ -57,7 +84,15 @@ def _skill_rows(sheet: dict[str, Any]) -> list[dict[str, Any]]:
                     value = int(item.get("value", 0) or 0)
                 except (TypeError, ValueError):
                     value = 0
-                rows.append({"name": name, "value": value})
+                row = {"name": name, "value": value}
+                effect = str(item.get("effect") or "").strip()
+                # 明确选中（selected_skill）与文本命中同等视为「本轮使用该技能」。
+                matched = _skill_action_matches(name, action_text) or bool(
+                    selected and selected == name.casefold()
+                )
+                if effect and include_matching_effects and matched:
+                    row["effect"] = effect[:MAX_SKILL_EFFECT_CHARS]
+                rows.append(row)
         elif str(item).strip():
             rows.append({"name": str(item).strip(), "value": 0})
     return rows
@@ -345,14 +380,18 @@ def _planner_context(instance: GameInstance, rule: RuleSystem | None) -> str:
         sheet = instance.get_character_sheet(uid)
         action_text = str(action.get("text") or "")[:1000]
         target_text = str(action.get("target_text") or "")
+        selected_skill = str(action.get("selected_skill") or "")
         players.append({
             "player_id": uid,
             "character_name": instance.players[uid].get("character_name") or uid,
             "action": action_text,
             "attributes": sheet.get("attributes", {}),
-            "skills": _skill_rows(sheet),
+            "skills": _skill_rows(
+                sheet, action_text, selected_skill,
+                include_matching_effects=True,
+            ),
             "selected_attribute": str(action.get("selected_attribute") or ""),
-            "selected_skill": str(action.get("selected_skill") or ""),
+            "selected_skill": selected_skill,
             "target_text": target_text,
             "item_context": _item_context(sheet, action_text, target_text),
         })
