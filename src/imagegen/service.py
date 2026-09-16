@@ -183,7 +183,8 @@ class ImageGenerationService:
         configured_rules = self.manual_rules if context.get("manual") else self.auto_rules
         configured_prompt = self.manual_prompt if context.get("manual") else self.auto_prompt
         if not context.get("manual") and self.auto_use_manual_prompt:
-            configured_rules, configured_prompt = self.manual_rules, self.manual_prompt
+            configured_rules = self.manual_rules or self.auto_rules
+            configured_prompt = self.manual_prompt or self.auto_prompt
         replacements = {
             "scene": str(context.get("scene") or ""),
             "narration": str(context.get("narration") or ""),
