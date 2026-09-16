@@ -8,6 +8,8 @@ from .storyboards import (
     normalize_scene_panels,
     public_character_appearances,
     storyboard_layout,
+    storyboard_source_revision,
+    storyboard_panel_metadata,
 )
 
 __all__ = [
@@ -26,4 +28,6 @@ __all__ = [
     "normalize_scene_panels",
     "public_character_appearances",
     "storyboard_layout",
+    "storyboard_source_revision",
+    "storyboard_panel_metadata",
 ]

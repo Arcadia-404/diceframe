@@ -336,6 +336,15 @@ export interface RoundSceneImage {
   revised_prompt?: string
   status?: 'ready' | 'failed' | string
   swipe_index?: number
+  layout?: string
+  panels?: ScenePanel[]
+  compressed_count?: number
+}
+
+export interface ScenePanel {
+  participants?: string[]
+  location: string
+  description: string
 }
 
 export type SceneGalleryItem = GeneratedImageRecord
@@ -1958,12 +1967,13 @@ export interface AppConfig {
   imagegen_enabled?: boolean
   imagegen_auto_scene?: boolean
   imagegen_manual_scene?: boolean
+  imagegen_auto_storyboard?: boolean
   imagegen_auto_use_manual_prompt?: boolean
   imagegen_manual_rules?: string
   imagegen_manual_prompt?: string
   imagegen_auto_rules?: string
   imagegen_auto_prompt?: string
-  imagegen_provider?: 'openai-compatible'
+  imagegen_provider?: 'openai-compatible' | 'minimax'
   imagegen_model?: string
   imagegen_square_size?: string
   imagegen_landscape_size?: string
