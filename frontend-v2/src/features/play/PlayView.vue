@@ -47,6 +47,8 @@ import { ruleSceneUrl } from '@/composables/useBackgroundImages'
 import { fileToBase64, resolveGameSceneImageUrl, revokeSceneImageUrl, sceneImageStyle } from '@/api/sceneImages'
 import { fetchRulesetAvailableActions } from '@/api/rulesets'
 import { currencyLabel } from '@/utils/ruleSchema'
+import { currencyAmountToInputText, currencyEditableUnitLabel } from '@/utils/currency'
+import type { CurrencySystem } from '@/utils/currency'
 import { buildRewardPolicySave, isEconomyProposalActionable, isNonBlockingPersonalPurchase, nextEconomyProposal } from '@/features/play/economyPrompts'
 
 defineOptions({ name: 'PlayView' })
@@ -534,7 +536,9 @@ function onRoomPassword() {
   luckTimeoutInput.value = ''
   const policy = game.detail.value?.economy_reward_policy || {}
   rewardPolicyMode.value = policy.mode || ''
-  rewardPolicyCap.value = policy.auto_reward_cap ? String(policy.auto_reward_cap) : ''
+  rewardPolicyCap.value = policy.auto_reward_cap
+    ? currencyAmountToInputText(policy.auto_reward_cap, economyCurrencySystem.value)
+    : ''
   // 只有 GM 真正改动了奖励策略字段才提交：detail 未加载或未触碰时提交
   // 会把空 mode 当作“清除本局覆盖”，改密码/超时就会误重置奖励策略。
   rewardPolicyTouched.value = false
@@ -554,6 +558,7 @@ async function setRoomPassword() {
     // 奖励策略仅在 GM 实际改动过时提交；显式选“跟随默认”仍会清除覆盖。
     const rewardSave = buildRewardPolicySave(
       rewardPolicyTouched.value, rewardPolicyMode.value, rewardPolicyCap.value,
+      economyCurrencySystem.value,
     )
     if (rewardSave) {
       const rpR = await api<{ ok?: boolean; error?: string }>(`/games/${encodeURIComponent(game.currentGame.value)}/settings/reward-policy`, { method: 'POST', body: JSON.stringify(rewardSave) })
@@ -718,6 +723,12 @@ const pendingPay = ref<PendingPayment | null>(null)
 const payResolving = ref(false)
 const dismissedPaymentIds = ref<Set<string>>(new Set())
 const economyCurrencyName = computed(() => currencyLabel(ruleMeta.value))
+const economyCurrencySystem = computed<CurrencySystem | null>(() => ruleMeta.value.currency_system || null)
+const economyEditableUnitSuffix = computed(() => {
+  // 奖励上限输入按可编辑单位解析（rate=3 等结构回退 base unit），标签必须一致。
+  const name = currencyEditableUnitLabel(economyCurrencySystem.value)
+  return name ? `（${name}）` : ''
+})
 const economyProposalList = computed(() => game.detail.value?.economy_proposals || [])
 const actionableEconomyProposals = computed(() => economyProposalList.value.filter(proposal => (
   isEconomyProposalActionable(
@@ -1161,6 +1172,7 @@ onBeforeUnmount(() => {
           :proposal="pendingPay"
           :busy="payResolving"
           :currency="economyCurrencyName"
+          :currency-system="economyCurrencySystem"
           :player-name="economyPlayerName"
           :dismiss-label="pendingEconomyDismissLabel(pendingPay)"
           :help="pendingEconomyHelp(pendingPay)"
@@ -1356,6 +1368,7 @@ onBeforeUnmount(() => {
       :payer-uid="composerPayerUid"
       :recipient-uid="composerRecipientUid"
       :busy="paymentBusy"
+      :currency-system="economyCurrencySystem"
       @close="showPaymentComposer = false"
       @submit="createPaymentProposal"
     />
@@ -1457,7 +1470,7 @@ onBeforeUnmount(() => {
             <option value="gm_confirm">{{ t('rewardPolicyGmConfirm') }}</option>
           </select>
         </label>
-        <label v-if="rewardPolicyMode === 'auto_small_cash'">{{ t('rewardPolicyCap') }}<input type="number" v-model="rewardPolicyCap" :placeholder="t('rewardPolicyCapPlaceholder')" min="1" @input="rewardPolicyTouched = true"></label>
+        <label v-if="rewardPolicyMode === 'auto_small_cash'">{{ t('rewardPolicyCap') }}{{ economyEditableUnitSuffix }}<input type="text" inputmode="decimal" v-model="rewardPolicyCap" :placeholder="t('rewardPolicyCapPlaceholder')" @input="rewardPolicyTouched = true"></label>
         <div class="actions">
           <button @click="showRoomPassword = false">{{ t('cancel') }}</button>
           <button class="primary" @click="setRoomPassword">{{ t('saveAction') }}</button>

@@ -18,10 +18,12 @@ from src.engine.character_utils import (
     make_default_character,
     normalize_character_sheet,
 )
+from src.compat.characters import MAX_SKILL_EFFECT_CHARS
 from src.content.worlds import localize_lorebook_entries
 from src.engine.language import localized_text
 from src.engine.health import record_health_event
 from src.engine.economy import (
+    MAX_ECONOMY_AMOUNT,
     complete_effect_group,
     queue_proposal,
     queue_purchase_offer,
@@ -209,8 +211,8 @@ async def create_payment_proposal(
         amount = int(amount)
     except (TypeError, ValueError):
         return {"ok": False, "error": "金额必须是整数"}
-    if not 0 < amount <= 100_000:
-        return {"ok": False, "error": "金额必须在 1 到 100000 之间"}
+    if not 0 < amount <= MAX_ECONOMY_AMOUNT:
+        return {"ok": False, "error": f"金额必须在 1 到 {MAX_ECONOMY_AMOUNT} 之间"}
     if payer_uid not in inst.players:
         return {"ok": False, "error": "付款角色不存在"}
     if recipient_uid not in inst.players:
@@ -296,7 +298,7 @@ _ATTR_NAME_ZH = {
 
 
 def _normalize_skills(skills: list, rule=None) -> list[dict]:
-    """规范化技能列表：字符串转为含数值的对象格式。"""
+    """规范化技能列表：字符串转为含数值的对象格式，并保留可选 effect 说明。"""
     base_values: dict[str, int] = rule.skill_base_values if rule else {}
     result: list[dict] = []
     for s in skills:
@@ -304,10 +306,14 @@ def _normalize_skills(skills: list, rule=None) -> list[dict]:
             result.append({"name": s, "value": base_values.get(s, 20)})
         elif isinstance(s, dict):
             name = s.get("name", "")
-            result.append({
+            row: dict = {
                 "name": name,
                 "value": s.get("value", base_values.get(name, 20)),
-            })
+            }
+            effect = str(s.get("effect") or "").strip()
+            if effect:
+                row["effect"] = effect[:MAX_SKILL_EFFECT_CHARS]
+            result.append(row)
     return result
 
 
