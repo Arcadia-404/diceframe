@@ -2322,6 +2322,7 @@ export const zhCN = {
     world_not_found: '世界不存在',
     economy_decision_pending: '请先处理待确认的经济提案，再继续本局叙事',
   },
-  imagegenAutoStoryboard: '自动分镜', imagegenAutoStoryboardHelp: '关闭：自动/手动场景图根据剧情按单图生成。开启：由 GM 根据本轮公开剧情输出分镜场景，自动场景图可生成多场景整图，适用于多人多场景生图。开启后 GM 回复会增加少量分镜信息；若缺少有效分镜，系统可能额外调用一次文本模型进行分析。',
-  storyboardAnalyze: '分析分镜', storyboardReanalyze: '重新分析分镜', storyboardApplyCandidate: '应用候选分镜', storyboardNotAnalyzed: '尚未分析分镜；点击“分析分镜”后才会调用文本模型。', storyboardCandidateHint: '这是分析候选稿，确认后点击“应用候选分镜”才会替换当前编辑稿。', storyboardCandidateTitle: '候选分镜预览', storyboardNoParticipants: '未指定人物', storyboardAnalyzingHint: '正在分析公开剧情，请稍候…', storyboardCandidateReady: '候选分镜已生成，请检查后应用。', storyboardAutomatic: '自动', storyboardAutomaticHint: '自动模式会在生成时按公开剧情规则规划格数和场景；选择 1–6 格可手动固定格数。',
+  imagegenAutoStoryboard: '自动分镜', imagegenAutoStoryboardHelp: '关闭：自动/手动场景图根据剧情按单图生成。开启：由 GM 根据本轮公开剧情输出分镜场景，自动场景图可生成多场景整图，适用于多人多场景生图。开启后 GM 回复时会增加少量分镜信息；若缺少有效分镜，可能会额外调用一次文本模型进行分析。',
+  storyboardAnalyze: '分析分镜', storyboardReanalyze: '重新分镜', storyboardApplyCandidate: '应用分镜', storyboardNotAnalyzed: '尚未分析分镜；点击“分析分镜”后才会调用文本模型。', storyboardCandidateHint: '这是候选，确认后点击“应用分镜”才会替换当前编辑稿。', storyboardCandidateTitle: '候选预览', storyboardNoParticipants: '未指定人物', storyboardAnalyzingHint: '正在分析公开剧情…', storyboardCandidateReady: '候选分镜已生成，请检查后应用。', storyboardAutomatic: '自动', storyboardAutomaticHint: '自动模式会在生成时按公开剧情规则规划格数和场景；选择 1–6 格可手动固定格数。',
+  storyboardAnalyzeCount: '按 {count} 格分析分镜', storyboardPanelCountMismatch: '要求 {count} 格，但分析只返回 {actual} 格，请重新分析。',
 } as const

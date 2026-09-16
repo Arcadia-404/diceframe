@@ -19,12 +19,17 @@ const panelCount = ref<number>(0)
 const visiblePanelCount = computed(() => panelCount.value > 0 ? panelCount.value : Math.max(1, Math.min(6, panels.value.length || 1)))
 const panels = ref<ScenePanel[]>([])
 const candidatePanels = ref<ScenePanel[] | null>(null)
+const candidatePanelCount = ref<number | null>(null)
 const hasStoryboardDraft = ref(false)
 const panelError = ref('')
 const analyzing = ref(false)
 const analysisMessage = ref('')
 const storyboardEnabled = computed(() => props.autoStoryboard !== false)
-const panelOptionCount = computed(() => storyboardEnabled.value ? 6 : 1)
+const analyzeButtonLabel = computed(() => {
+  if (analyzing.value) return t('storyboardAnalyzingHint')
+  if (panelCount.value > 0) return t('storyboardAnalyzeCount', { count: panelCount.value })
+  return hasStoryboardDraft.value ? t('storyboardReanalyze') : t('storyboardAnalyze')
+})
 
 const uploadAvatarIds = computed(() => new Set(
   (props.players || [])
@@ -68,6 +73,7 @@ function draftPrompt(): string {
     : []
   hasStoryboardDraft.value = savedPanels.length > 0
   candidatePanels.value = null
+  candidatePanelCount.value = null
   panels.value = savedPanels.length
     ? savedPanels.map(panel => ({
       participants: [...(panel.participants || [])],
@@ -83,6 +89,9 @@ function draftPrompt(): string {
 }
 
 watch(panelCount, (count) => {
+  candidatePanels.value = null
+  candidatePanelCount.value = null
+  analysisMessage.value = ''
   const target = Number(count)
   if (!target) {
     panelError.value = ''
@@ -141,16 +150,22 @@ async function analyze() {
   analyzing.value = true
   analysisMessage.value = t('storyboardAnalyzingHint')
   panelError.value = ''
+  const requestedCount = panelCount.value > 0 ? panelCount.value : undefined
   try {
-    const result = await analyzeStoryboard(props.gameKey, targetRound.value, panelCount.value || undefined)
+    const result = await analyzeStoryboard(props.gameKey, targetRound.value, requestedCount)
     if (!result.ok || !Array.isArray(result.panels) || !result.panels.length) throw new Error(result.error || 'storyboard-analysis-failed')
+    if (requestedCount && result.panels.length !== requestedCount) {
+      throw new Error(t('storyboardPanelCountMismatch', { count: requestedCount, actual: result.panels.length }))
+    }
     candidatePanels.value = (result.panels as ScenePanel[]).map(panel => ({
       participants: [...(panel.participants || [])],
       location: String(panel.location || ''),
       description: String(panel.description || ''),
     }))
+    candidatePanelCount.value = requestedCount ?? 0
     analysisMessage.value = t('storyboardCandidateReady')
   } catch (error) {
+    analysisMessage.value = ''
     panelError.value = error instanceof Error ? error.message : String(error)
   } finally {
     analyzing.value = false
@@ -159,14 +174,22 @@ async function analyze() {
 
 function applyCandidate() {
   if (!candidatePanels.value?.length) return
+  const fixedCount = candidatePanelCount.value && candidatePanelCount.value > 0
+    ? candidatePanelCount.value
+    : null
+  if (fixedCount && candidatePanels.value.length !== fixedCount) {
+    panelError.value = t('storyboardPanelCountMismatch', { count: fixedCount, actual: candidatePanels.value.length })
+    return
+  }
   panels.value = candidatePanels.value.map(panel => ({
     participants: [...(panel.participants || [])],
     location: panel.location,
     description: panel.description,
   }))
-  panelCount.value = Math.max(1, Math.min(6, panels.value.length))
+  panelCount.value = fixedCount ?? Math.max(1, Math.min(6, panels.value.length))
   hasStoryboardDraft.value = true
   candidatePanels.value = null
+  candidatePanelCount.value = null
 }
 </script>
 
@@ -176,13 +199,8 @@ function applyCandidate() {
     <textarea v-model="prompt" rows="8" :placeholder="t('roundImagePromptPlaceholder')" />
     <div class="storyboard-editor">
       <div class="storyboard-header">
-        <label>{{ t('storyboardPanelCount') }}
-          <select v-model.number="panelCount">
-            <option v-if="storyboardEnabled" :value="0">{{ t('storyboardAutomatic') }}</option>
-            <option v-for="count in panelOptionCount" :key="count" :value="count">{{ count }}</option>
-          </select>
-        </label>
-         <button v-if="storyboardEnabled" type="button" :disabled="analyzing" @click="analyze">{{ analyzing ? t('generatingImage') : (hasStoryboardDraft ? t('storyboardReanalyze') : t('storyboardAnalyze')) }}</button>
+         <span v-if="!storyboardEnabled" class="muted">{{ t('storyboardAutomatic') }}</span>
+         <button v-if="storyboardEnabled" type="button" :disabled="analyzing" @click="analyze">{{ analyzeButtonLabel }}</button>
          <button v-if="candidatePanels" type="button" class="primary" @click="applyCandidate">{{ t('storyboardApplyCandidate') }}</button>
       </div>
       <p v-if="storyboardEnabled && !hasStoryboardDraft && !candidatePanels" class="muted">{{ t('storyboardNotAnalyzed') }}</p>

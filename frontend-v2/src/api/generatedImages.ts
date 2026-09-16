@@ -65,7 +65,7 @@ export async function fetchStoryboardDraft(gameKey: string, round = 0): Promise<
   return api(`/games/${encodeURIComponent(gameKey)}/generated-images/storyboard?round=${round}`)
 }
 
-export async function analyzeStoryboard(gameKey: string, round = 0, panelCount?: number): Promise<{ ok?: boolean; round?: number; panels?: unknown[]; compressed_count?: number; error?: string }> {
+export async function analyzeStoryboard(gameKey: string, round = 0, panelCount?: number): Promise<{ ok?: boolean; round?: number; panels?: unknown[]; compressed_count?: number; requested_panel_count?: number | null; actual_panel_count?: number; error?: string }> {
   return api(`/games/${encodeURIComponent(gameKey)}/generated-images/storyboard/analyze`, { method: 'POST', body: JSON.stringify({ round, panel_count: panelCount }) })
 }
 

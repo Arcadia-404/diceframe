@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from src.imagegen.storyboards import (
+    StoryboardInferenceError,
     build_storyboard_prompt,
     infer_scene_panels,
     normalize_scene_panels,
@@ -186,6 +187,58 @@ async def test_requested_count_replans_existing_declared_panels() -> None:
     )
     assert len(llm.calls) == 2
     assert len(panels) == 6
+
+
+@pytest.mark.asyncio
+async def test_requested_count_rejects_a_second_short_result() -> None:
+    three_panels = (
+        '{"panels":['
+        '{"participants":["alice"],"location":"后院","description":"审问","evidence_ids":["n1"]},'
+        '{"participants":["bob"],"location":"塔底","description":"搜索","evidence_ids":["n2"]},'
+        '{"participants":["alice"],"location":"前厅","description":"会合","evidence_ids":["n3"]}]}'
+    )
+    llm = _SequencePanelLLM(three_panels, three_panels)
+
+    with pytest.raises(StoryboardInferenceError, match="要求 6 格，实际 3 格"):
+        await infer_scene_panels(
+            llm,
+            narration="Alice在后院审问；Bob在塔底搜索；Alice回到前厅会合。",
+            actions=[], current_scene="后院",
+            players={"alice": {"character_name": "Alice"}, "bob": {"character_name": "Bob"}},
+            requested_panel_count=6,
+        )
+
+    assert len(llm.calls) == 2
+    assert '"requested_panel_count":6' in llm.calls[0][1]
+    assert "first pass produced 3 valid panels" in llm.calls[1][1]
+
+
+def test_six_panel_prompt_keeps_exact_count_without_forcing_a_grid() -> None:
+    panels = [
+        {"participants": [], "location": f"地点{i}", "description": "很长的画面描述" * 80}
+        for i in range(1, 7)
+    ]
+    prompt, metadata = build_storyboard_prompt(panels, max_chars=900)
+
+    assert metadata["layout"] == "six-panel"
+    assert "exactly 6 distinct panels" in prompt
+    assert "exactly 6 regions" in prompt
+    assert "3 x 2" not in prompt
+    assert len(prompt) <= 900
+    for index in range(1, 7):
+        assert f"Panel {index}" in prompt
+
+
+def test_three_panel_prompt_leaves_geometry_to_the_visual_model() -> None:
+    prompt, _ = build_storyboard_prompt([
+        {"participants": [], "location": "A", "description": "一"},
+        {"participants": [], "location": "B", "description": "二"},
+        {"participants": [], "location": "C", "description": "三"},
+    ])
+
+    assert "adaptive arrangement" in prompt
+    assert "freely choose the geometry" in prompt
+    assert "one row" not in prompt
 
 
 @pytest.mark.asyncio

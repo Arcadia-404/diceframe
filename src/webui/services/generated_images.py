@@ -14,6 +14,7 @@ from src.imagegen import (
     ImageGenerationError,
     ImageGenerationRequest,
     ImageGenerationResult,
+    StoryboardInferenceError,
     game_image_owner_id,
     infer_scene_panels,
     normalize_scene_panels,
@@ -121,23 +122,38 @@ class GeneratedImageService:
         source_revision = storyboard_source_revision(entry)
         cache_key = (str(game_key), source_revision, int(requested_count or 0))
         cached = self._storyboard_cache.get(cache_key)
+        if cached is not None and requested_count is not None and len(cached[0]) != requested_count:
+            self._storyboard_cache.pop(cache_key, None)
+            cached = None
         if cached is not None:
             panels, compressed = deepcopy(cached[0]), cached[1]
         else:
-            panels, compressed = await infer_scene_panels(
-                self._dependencies.llm_client,
-                narration=str(entry.get("gm_response") or ""),
-                actions=entry.get("actions") or [],
-                current_scene=str(getattr(instance, "scene", "") or ""),
-                players=getattr(instance, "players", {}),
-                global_prompt="",
-                declared_panels=[],
-                requested_panel_count=requested_count,
-            )
+            try:
+                panels, compressed = await infer_scene_panels(
+                    self._dependencies.llm_client,
+                    narration=str(entry.get("gm_response") or ""),
+                    actions=entry.get("actions") or [],
+                    current_scene=str(getattr(instance, "scene", "") or ""),
+                    players=getattr(instance, "players", {}),
+                    global_prompt="",
+                    declared_panels=[],
+                    requested_panel_count=requested_count,
+                )
+            except StoryboardInferenceError as exc:
+                return {"ok": False, "error": str(exc)}
+            if requested_count is not None and len(panels) != requested_count:
+                return {"ok": False, "error": f"分镜分析未生成指定的 {requested_count} 格，请重新分析"}
             self._storyboard_cache[cache_key] = (deepcopy(panels), compressed)
             if len(self._storyboard_cache) > 64:
                 self._storyboard_cache.pop(next(iter(self._storyboard_cache)))
-        return {"ok": True, "round": int(entry.get("round") or 0), "panels": panels, "compressed_count": compressed}
+        return {
+            "ok": True,
+            "round": int(entry.get("round") or 0),
+            "panels": panels,
+            "compressed_count": compressed,
+            "requested_panel_count": requested_count,
+            "actual_panel_count": len(panels),
+        }
 
     def preview_prompt(self, game_key: str, user_id: str, prompt: str, panels: Any = None) -> dict[str, Any]:
         instance = self._dependencies.get_instance(game_key)

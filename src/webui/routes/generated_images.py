@@ -161,7 +161,9 @@ async def api_analyze_storyboard(request: web.Request) -> web.Response:
     try:
         requested_count = int(requested_count) if requested_count is not None else None
     except (TypeError, ValueError):
-        requested_count = None
+        return web.json_response({"ok": False, "error": "分镜格数必须是 1 到 6 的整数"}, status=400)
+    if requested_count is not None and not 1 <= requested_count <= 6:
+        return web.json_response({"ok": False, "error": "分镜格数必须在 1 到 6 之间"}, status=400)
     result = await _get_api(request).analyze_storyboard(str(request.match_info["game_key"]), str(request.get("user_id", "") or ""), int((body or {}).get("round") or 0), requested_count)
     return web.json_response(result, status=200 if result.get("ok") else 400)
 

@@ -4,6 +4,7 @@ import { i18n } from '../src/i18n'
 import CurrentRoundImageModal from '../src/components/play/CurrentRoundImageModal.vue'
 import type { GameDetail, LogEntry, Player } from '../src/api/types'
 
+
 function mountModal(detail: Partial<GameDetail>, log: LogEntry[], players: Player[] = []) {
   i18n.global.locale.value = 'zh-CN'
   return mount(CurrentRoundImageModal, {
@@ -60,7 +61,8 @@ describe('CurrentRoundImageModal', () => {
 
   it('keeps the storyboard control concise', () => {
     const wrapper = mountModal({ scene: '雾港码头', round_number: 5 }, [])
-    expect(wrapper.text()).toContain('分镜格数')
+    expect(wrapper.find('select').exists()).toBe(false)
+    expect(wrapper.text()).not.toMatch(/分镜格数|按 [1-6] 格分析分镜/)
     expect(wrapper.text()).not.toContain('系统会根据公开叙事判断同时异地或独立关键镜头，自动生成最多六格分镜。')
     expect(wrapper.text()).not.toContain('分镜留空')
   })
@@ -112,8 +114,7 @@ describe('CurrentRoundImageModal', () => {
       { scene: '寄宿屋', round_number: 5 },
       [{ round: 4, gm_response: '门口的老妇人交出簿子；与此同时，塔底的队伍钻入船肋；随后，阿尔比娜回到前厅。' }],
     )
-    const select = wrapper.get('select')
-    expect((select.element as HTMLSelectElement).value).toBe('1')
+    expect(wrapper.find('select').exists()).toBe(false)
     const locations = wrapper.findAll('input').filter(input => !input.attributes('type'))
     await locations[0].setValue('寄宿屋门链')
     const descriptions = wrapper.findAll('textarea')
@@ -147,8 +148,9 @@ describe('CurrentRoundImageModal', () => {
       players,
     )
 
-    expect((wrapper.get('select').element as HTMLSelectElement).value).toBe('1')
+    expect(wrapper.find('select').exists()).toBe(false)
     const panels = wrapper.findAll('.storyboard-panel')
     expect(panels).toHaveLength(1)
   })
+
 })
